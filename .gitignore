@@ -1,0 +1,9 @@
+logs/
+reports/
+*.zip
+*.tar.gz
+*.logarchive
+sysdiagnose_*
+.envrc
+.claude/settings.local.json
+.DS_Store
