@@ -6,7 +6,7 @@ Prioritize symptom-specific evidence while still checking broad system health. A
 
 - Read `sw_vers.txt`, `uptime.txt`, relevant `SystemProfiler/*.spx` and `sysdiagnose.log`.
 - Record model, architecture, OS version and build, capture start and end, time zone, uptime, boot context, capture mode and source, selected process, and presence of serial or inventory identifiers when available.
-- Sanitize identifier values unless the case requires them.
+- Keep the serial number (report identity); sanitize other identifier values unless the case requires them.
 - Review collection task counts, timeouts, errors and summaries.
 - Do not confuse sysdiagnose CPU and I/O activity or collection failures with preexisting host faults.
 

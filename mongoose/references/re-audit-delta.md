@@ -6,6 +6,7 @@ Use for a second pass: a baseline capture and its prior Mongoose report, plus on
 
 - Classify every capture as baseline or new by collection timestamp, not by file name or upload order.
 - Record each capture's SHA-256 before analysis. Re-check at the end and report both in the Captures table.
+- Confirm every capture names the same serial number. A mismatch means a different Mac: stop and ask. If the prior report redacted the serial, confirm it from the baseline capture instead.
 
 ## 2. Re-Test, Do Not Copy
 

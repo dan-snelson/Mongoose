@@ -5,7 +5,7 @@
 - Write to `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md` in the working directory.
 - Name it from the capture's collection timestamp, never from today's date. On a re-audit, use the newest capture. State the source of the timestamp in the header.
 - Create `reports/` if missing. Before writing, confirm it is git-ignored, for example with `git check-ignore -q reports/probe.md`. If it is not, ask.
-- Sanitize per [Evidence Safety](evidence-safety.md).
+- Sanitize per [Evidence Safety](evidence-safety.md). The serial number stays, as the report's identity; it never goes in the file name, so redaction needs no rename.
 
 ## Labels
 
@@ -22,7 +22,7 @@
 
 ## Order
 
-1. **Header.** Scope. Evidence window: start and end with their original offsets, plus duration from first boot. Prepared date and sanitization statement. Label legend.
+1. **Header.** Scope. Mac: serial number with its source citation, plus model and OS when the evidence states them; if no source states a serial, say so here and under Limitations. Evidence window: start and end with their original offsets, plus duration from first boot. Prepared date and sanitization statement. Label legend.
 2. **Evidence and method.**
    - Captures table: name, class (baseline or new), collection or snapshot time, integrity check, SHA-256 prefix.
    - Members table: member, lines, notes (truncated tail, rotated, missing).
@@ -77,14 +77,34 @@ sysctl -n kern.boottime
   --predicate 'process == "mdmclient"'
 ```
 
+## Redaction Prompt
+
+Run after the report is written and the findings are complete.
+
+1. Ask one question: keep or redact the serial number.
+2. **Keep:** leave the report as written. Say in the closing message that the report identifies the Mac by serial number.
+3. **Redact:** edit the same file in place.
+   - Replace every exact occurrence of the serial with `<serial>`, including any fragment the report quotes.
+   - Change the Prepared line to: "Sanitized: identifiers replaced with placeholders, including the serial number."
+   - Verify that no copy remains:
+
+```zsh
+serial='<serial>'
+report='reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md'
+
+# Expect 0.
+rg -c -F -- "$serial" "$report" || print -r -- '0'
+```
+
 ## Skeleton
 
 ```markdown
 # Mongoose: The Good, The Bad, and The Ugly
 
 - **Scope:** <what was audited and why>
+- **Mac:** Serial number `<serial>` (`<file>:L<n>` or `<key path>`); <model>; macOS <version> (<build>)
 - **Evidence window:** <start with original offset> to <end with original offset>; <duration> from first boot
-- **Prepared:** <YYYY-MM-DD>. Sanitized: identifiers replaced with placeholders.
+- **Prepared:** <YYYY-MM-DD>. Sanitized: identifiers other than the serial number replaced with placeholders.
 - **Labels:** Obs = observation. Inf = inference (confidence). Conclusion = independent signals agree. **New** = not in prior audit.
 
 ## Evidence and method

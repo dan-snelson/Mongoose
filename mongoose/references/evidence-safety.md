@@ -7,6 +7,7 @@ Cross-cutting rules for every Mongoose audit. Time rules live in [Time Context](
 Detail for the workflow steps in `SKILL.md`.
 
 - **Inventory.** Read the request first. Record the symptom or audit goal, expected behavior, approximate occurrence time, reproduction steps, affected policy, script or workflow, and whether the symptom was active during capture. Identify every capture and its type: client-log bundle, MDM inventory export, sysdiagnose, follow-up transcript, prior report. Record contents, sizes, formats, compression and collection timestamp. Separate missing evidence, collection failures, truncation, permission limits, rotation and out-of-window data from observed host behavior.
+- **Device identity.** Record the Mac's serial number with its citation: `file:Lnn` or an inventory key path. Sources: [Capture Layout](capture-layout.md#device-identity). Cross-check every source that states it. If sources disagree, stop and ask, because the captures may come from different Macs. Never infer a serial from a hostname fragment or a partial string. If no source states it, report "not found in evidence".
 - **Hashes.** Hash each capture as received. Re-hash at the end; a changed hash means the handling failed and must be reported.
 - **Symptom and script focus.** Capture policy, script, process, PID, parent and child context, executable path, exit status, signal, duration and adjacent events when available. Search the narrowest relevant time window and source first, then widen. Correlate the same policy, script, package, process, path, subsystem, declaration or event across sources.
 - **Baseline health.** Run it after the focused analysis. Do not let unrelated background warnings displace the reported problem.
@@ -48,6 +49,8 @@ Commands must be paste-ready for the impacted user's macOS Zsh.
 Captures may contain usernames, hostnames, serial and inventory identifiers, IP and MAC addresses, SSIDs, internal URLs, filesystem paths, shell configuration, environment variables, command lines, policy and script parameters, application activity, preferences, configuration profiles and security-policy details. Sysdiagnose archives and MDM inventory exports are especially sensitive.
 
 ### Placeholders
+
+Report identity is the one exception. Reports keep the Mac's serial number by default, so Mac Admins know which Mac generated each report. Every other value below becomes its placeholder. Use `<serial>` in examples, and in a report once the user chooses redaction at the prompt in [Report: The Good, The Bad, And The Ugly](report-gbu.md#redaction-prompt).
 
 | Value | Placeholder |
 |---|---|
@@ -104,6 +107,7 @@ For any vendor capture archive, such as a sysdiagnose or another vendor's diagno
 ## Reporting Principles
 
 - Sanitize every report meant for Git, tickets, chat, email or external sharing. Replace case-specific identifiers while keeping enough context for technical review.
+- The serial number stays unless the user redacts it at the redaction prompt. Recommend redaction before a report leaves the team that manages the Mac.
 - When one finding goes to several audiences (platform vendor, security vendor, internal security team), keep one evidence set and change only the framing and the asks.
 - For mixed captures, keep the GBU structure. Fold sysdiagnose evidence into the timeline, the findings and the cross-cutting observations.
 - Frame every configuration or endpoint change as a recommendation for the owning team. Distinguish recommendation from completed work.

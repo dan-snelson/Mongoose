@@ -37,6 +37,12 @@ unzip -p "$bundle" '<prefix>-system.log' | rg -n -i 'error|fail|denied|killed'
 
 # Read a rotated member without writing it to disk.
 unzip -p "$bundle" '<prefix>-system.log.0.gz' | gzcat | rg -n 'BOOT_TIME|SHUTDOWN_TIME'
+
+# Serial-number candidates, first five per member; cite as member:Lnn.
+zipinfo -1 "$bundle" | while IFS= read -r member; do
+  [[ "$member" == */ || "$member" == *.gz ]] && continue
+  unzip -p "$bundle" "$member" | rg -n -i -e 'serial' -e 'S/N' | head -n 5 | sed "s|^|$member:|"
+done
 ```
 
 ## Directory Bundle
@@ -59,6 +65,9 @@ done
 # Search text logs with file names and line numbers.
 rg -n -i 'error|fail|denied|killed' "$capture_dir"
 
+# Serial-number candidates, first five per file.
+rg -n -i -m 5 -e 'serial' -e 'S/N' "$capture_dir"
+
 # Read rotated logs without extracting them in place.
 for gz in "$capture_dir"/*.gz(.N); do
   print -r -- "== $gz"
@@ -74,6 +83,9 @@ inventory='logs/<inventory-export>.json'
 # Key paths only, no values: shows what the export holds without printing data.
 # jq ships with macOS 15 and later.
 jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | sort -u | head -n 200
+
+# Key paths that hold a serial number; print the one that names the Mac.
+jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | rg -i 'serial'
 
 # Print one key path once you know it is needed.
 jq '.<key>.<path>' "$inventory"

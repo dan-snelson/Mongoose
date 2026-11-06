@@ -11,6 +11,17 @@ A ZIP or directory of copied `/var/log` files, made by a log-collection policy o
 - Confirm what each member is from its first and last lines. Renamed and truncated files are common.
 - Collection scripts can copy a log while it is still being written and can skip missing rotated logs. See [Interpretation Rules](interpretation-rules.md).
 
+## Device Identity
+
+Reports name the Mac by serial number. Look for it in these places, and cite the source:
+
+- MDM inventory JSON export: search key paths for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path and snapshot time.
+- Organization scripts that print it to `<rdnn>.log`, such as onboarding or health-check banners.
+- Sysdiagnose hardware data in `SystemProfiler/*.spx`.
+- `Terminal Saved Output*.txt` transcripts that printed it.
+
+Cross-check rules live in [Evidence Safety](evidence-safety.md). Never infer a serial from a hostname or other partial string.
+
 ## Primary Sources
 
 - `system.log` and rotated `system.log.<n>.gz`: boot and shutdown markers, launchd, daemons, and scripts that log to syslog.
