@@ -6,7 +6,7 @@ description: Deep audit of MDM policies and custom script deployments on managed
 
 Audit how MDM policies and custom script deployments behave on managed Macs, then write "The Good, The Bad, and The Ugly".
 
-Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log`) and `/var/log/<rdnn>.log`, the organization's reverse-domain script log (for example `/var/log/org.churchofjesuschrist.log `). Optional: `install.log`, an MDM inventory JSON export, an Apple sysdiagnose, follow-up `Terminal Saved Output*.txt` transcripts and a prior Mongoose report.
+Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log`) and `/var/log/<rdnn>.log`, the organization's reverse-domain script log (for example `/var/log/org.churchofjesuschrist.log`). Optional: `install.log`, an MDM inventory JSON export, an Apple sysdiagnose, follow-up `Terminal Saved Output*.txt` transcripts and a prior Mongoose report.
 
 ## Core Invariants
 
@@ -30,6 +30,7 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 7. **GBU report.** Write the report; on a second pass, add the delta vs prior audit.
 8. **Follow-up commands.** One round of grouped, read-only, paste-ready Zsh.
 9. **Redaction prompt.** Once the findings are complete, ask whether to redact the serial number. If yes, replace it with `<serial>` throughout the report and confirm no copy remains.
+10. **Offer post-chat-refine.** Only after the step 9 question is answered, end the closing reply with one line offering to fold this run's durable learnings back into the skill. Never ask both questions in one message. The offer goes in the reply, never in the report. Once declined, don't offer again this session.
 
 ## Load When
 
@@ -43,3 +44,5 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 - A sysdiagnose is supplied: [Sysdiagnose Capture Layout](references/sysdiagnose/capture-layout.md), [Archive And Log Commands](references/sysdiagnose/archive-and-log-commands.md) and [Analysis Workflow](references/sysdiagnose/analysis-workflow.md).
 - Enrollment or Setup Assistant handoff in a sysdiagnose: [ADE Handoffs](references/sysdiagnose/ade-handoffs.md).
 - Privacy-proxy or OHTTP failure with a content filter, DNS proxy or VPN present: [Network Filters And OHTTP](references/sysdiagnose/network-filter-ohttp.md).
+- The user accepts the Step 10 offer: [Post-Chat Refine](references/post-chat-refine.md).
+- The user asks to slim or restructure the skill, or post-chat-refine leaves it over budget: [Binge And Purge](references/binge-and-purge.md).
