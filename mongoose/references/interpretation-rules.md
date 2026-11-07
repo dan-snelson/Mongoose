@@ -37,6 +37,7 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 
 - Time-dependent inventory values are not comparable between snapshots of different age: health state, remediation state, SSO registration, Remote Desktop state.
 - Record each snapshot's time and its age at collection before comparing values.
+- Inventory values and extension attributes date from the last inventory report (Jamf Pro: `reportDate`), not from the export time. Check-in time can be newer.
 
 ### Recurring Warnings
 

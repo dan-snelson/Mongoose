@@ -15,7 +15,7 @@ A ZIP or directory of copied `/var/log` files, made by a log-collection policy o
 
 Reports name the Mac by serial number. Look for it in these places, and cite the source:
 
-- MDM inventory JSON export: search key paths for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path and snapshot time.
+- MDM inventory JSON export: search key paths for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path and snapshot time. Use the hardware or general serial; disk and certificate serials do not identify the Mac.
 - Organization scripts that print it to `<rdnn>.log`, such as onboarding or health-check banners.
 - Sysdiagnose hardware data in `SystemProfiler/*.spx`.
 - `Terminal Saved Output*.txt` transcripts that printed it.
@@ -31,7 +31,7 @@ Cross-check rules live in [Evidence Safety](evidence-safety.md). Never infer a s
 ## Optional Sources
 
 - `install.log`: macOS Installer, package and software-update activity.
-- MDM inventory JSON export: server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive.
+- MDM inventory JSON export: server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive. On its own it supports a [Preliminary Audit](preliminary-audit.md).
 - Apple sysdiagnose: see [Sysdiagnose Capture Layout](sysdiagnose/capture-layout.md).
 - `Terminal Saved Output*.txt`: follow-up commands run on the impacted Mac, with their output. Later transcripts may refine or replace earlier hypotheses. In Jamf Pro, `jamf recon -verbose` output ends with `<computer_id>`; use it to confirm that a transcript and a bundle refer to the same record, and treat the value as sensitive.
 - A prior Mongoose report: input to a re-audit. See [Re-Audit Delta](re-audit-delta.md).

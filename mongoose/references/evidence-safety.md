@@ -55,13 +55,14 @@ Report identity is the one exception. Reports keep the Mac's serial number by de
 | Value | Placeholder |
 |---|---|
 | MDM device or computer ID | `<computer-id>` |
+| UDID, hardware UUID or management ID | `<udid>` |
 | Serial number | `<serial>` |
 | Hostname or computer name | `<hostname>` |
-| End-user account | `<end-user>` |
+| End-user account, real name or email | `<end-user>` |
 | Managed local admin account | `<managed-admin>` |
 | MDM server URL | `<mdm-url>` |
 | Organization reverse-domain | `com.example` |
-| IP address, SSID, internal URL | `<ip>`, `<ssid>`, `<internal-url>` |
+| IP address, MAC address, SSID, internal URL | `<ip>`, `<mac-address>`, `<ssid>`, `<internal-url>` |
 | Smart group, ring or scope name | `<group>` |
 | Secret, token or key | `<redacted>` |
 

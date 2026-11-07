@@ -1,12 +1,12 @@
 ---
 name: mongoose
-description: Deep audit of MDM policies and custom script deployments on managed Macs. Reads system.log, the MDM agent log (for example jamf.log) and the organization's reverse-domain script log (for example com.example.it.log), plus optional install.log, an MDM inventory JSON export and an Apple sysdiagnose, usually from a client-log bundle. Produces an evidence-cited Markdown report titled The Good, The Bad, and The Ugly that names the Mac by serial number and sanitizes all other identifiers, with a normalized timeline, a per-script deployment lens, limitations and read-only Zsh follow-up commands, then offers to redact the serial. Also runs second-pass re-audits that re-test prior findings and report a delta vs prior audit. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, system.log, jamf.log, install.log, reverse-domain script log, client-log bundle, sysdiagnose, re-audit, delta vs prior audit.
+description: Deep audit of MDM policies and custom script deployments on managed Macs. Reads system.log, the MDM agent log (for example jamf.log) and the organization's reverse-domain script log (for example com.example.it.log), plus optional install.log, an MDM inventory JSON export and an Apple sysdiagnose, usually from a client-log bundle. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Produces an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial number and sanitizing other identifiers, with a timeline, a per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Also re-audits prior findings with a delta vs prior audit. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, system.log, jamf.log, install.log, reverse-domain script log, client-log bundle, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit.
 ---
 # Mongoose
 
 Audit how MDM policies and custom script deployments behave on managed Macs, then write "The Good, The Bad, and The Ugly".
 
-Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log`) and `/var/log/<rdnn>.log`, the organization's reverse-domain script log (for example `/var/log/org.churchofjesuschrist.log`). Optional: `install.log`, an MDM inventory JSON export, an Apple sysdiagnose, follow-up `Terminal Saved Output*.txt` transcripts and a prior Mongoose report.
+Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log`) and `/var/log/<rdnn>.log`, the organization's reverse-domain script log (for example `/var/log/org.churchofjesuschrist.log`). Optional: `install.log`, an MDM inventory JSON export, an Apple sysdiagnose, follow-up `Terminal Saved Output*.txt` transcripts and a prior Mongoose report. An MDM inventory JSON on its own, such as a Jamf Pro Computer Record, gets a preliminary audit.
 
 ## Core Invariants
 
@@ -35,6 +35,7 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 ## Load When
 
 - Always: [Evidence Safety](references/evidence-safety.md) for citations, privacy, placeholders and follow-up command design.
+- Only an MDM inventory JSON is supplied: [Preliminary Audit](references/preliminary-audit.md) at every step. It changes the identity, time, lens and report rules.
 - Steps 1-2: [Capture Layout](references/capture-layout.md) and [Inventory Commands](references/inventory-commands.md).
 - Step 3, and any cross-source correlation: [Time Context](references/time-context.md).
 - Step 4: [Script-Deployment Playbooks](references/script-deployment-playbooks.md).

@@ -6,6 +6,7 @@
 - Name it from the capture's collection timestamp, never from today's date. On a re-audit, use the newest capture. State the source of the timestamp in the header.
 - Create `reports/` if missing. Before writing, confirm it is git-ignored, for example with `git check-ignore -q reports/probe.md`. If it is not, ask.
 - Sanitize per [Evidence Safety](evidence-safety.md). The serial number stays, as the report's identity; it never goes in the file name, so redaction needs no rename.
+- Inventory-JSON-only runs use the file name, title, sections and lens in [Preliminary Audit](preliminary-audit.md#report-deltas).
 
 ## Labels
 

@@ -77,18 +77,56 @@ done
 
 ## MDM Inventory JSON
 
+Print key paths, counts, sizes and selected status fields, never the full record or raw extension-attribute values.
+
 ```zsh
 inventory='logs/<inventory-export>.json'
 
+# Valid JSON prints nothing. jq ships with macOS 15 and later.
+jq empty "$inventory"
+
+# Shape: top-level keys with type and size, no values.
+jq -r 'to_entries[] | [.key, (.value | type), (.value | if type == "array" or type == "object" then length else "" end)] | @tsv' "$inventory"
+
 # Key paths only, no values: shows what the export holds without printing data.
-# jq ships with macOS 15 and later.
 jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | sort -u | head -n 200
 
-# Key paths that hold a serial number; print the one that names the Mac.
+# Key paths that hold a serial number. Disk and certificate serials also match;
+# only the hardware or general section names the Mac.
 jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | rg -i 'serial'
+
+# Snapshot candidate: a 13-digit epoch in the file name, as UTC. Compare with mtime.
+epoch_ms=$(print -r -- "${inventory:t}" | rg -o '[0-9]{13}' | head -n 1)
+[[ -n "$epoch_ms" ]] && date -u -r $(( epoch_ms / 1000 )) '+%Y-%m-%dT%H:%M:%SZ'
 
 # Print one key path once you know it is needed.
 jq '.<key>.<path>' "$inventory"
+```
+
+### Preliminary Audit Projections
+
+For [Preliminary Audit](preliminary-audit.md). Key paths are Jamf Pro API; map them for other shapes.
+
+```zsh
+inventory='logs/<computer-id>_response_<epoch-ms>.json'
+
+# Time fields.
+jq '{reportDate: .general.reportDate, lastContact: .general.lastContact, lastEnrolledDate: .general.lastEnrolledDate, initialEntryDate: .general.initialEntryDate, mdmProfileExpiration: .general.mdmProfileExpiration, lastSuccessfulAttestation: .security.lastSuccessfulAttestation, profilesInstalled: ([.configurationProfiles[]?.lastInstalled | select(. != null)] | {first: min, last: max})}' "$inventory"
+
+# Management, OS, security, encryption, storage and battery status fields.
+jq '{management: (.general | {enrolledViaAutomatedDeviceEnrollment, supervised, userApprovedMdm, declarativeDeviceManagementEnabled, mdmCapable: .mdmCapable.capable, jamfBinaryVersion}), os: (.operatingSystem | {version, build, fileVault2Status}), security: .security, encryption: (.diskEncryption | {individualRecoveryKeyValidityStatus, institutionalRecoveryKeyPresent, fileVault2Enabled, boot: .bootPartitionEncryptionDetails, enabledUsers: (.fileVault2EnabledUserNames | length)}), storage: {bootFreeMB: .storage.bootDriveAvailableSpaceMegabytes, smart: [.storage.disks[]?.smartStatus]}, battery: (.hardware | {batteryHealth, batteryCapacityPercent})}' "$inventory"
+
+# Counts: non-system accounts, profiles, receipts, smart groups, certificates, attachments.
+jq '{accounts: ([.localUserAccounts[]? | select((.uid | tonumber? // -1) >= 501)] | length), profiles: (.configurationProfiles | length), receiptsMdm: (.packageReceipts.installedByJamfPro | length), smartGroups: ([.groupMemberships[]? | select(.smartGroup)] | length), certificates: ([.certificates[]? | "\(.certificateStatus)/\(.lifecycleStatus)"] | group_by(.) | map({(first): length}) | add), attachments: [.attachments[]? | {fileType, sizeBytes}]}' "$inventory"
+
+# Extension-attribute lens: collector, type, value bytes and name, largest first. No values.
+eas='def eas: [.extensionAttributes[]?, ((.general, .hardware, .operatingSystem, .userAndLocation) | .extensionAttributes[]?)] | .[];'
+jq -r "$eas"' eas | [.inputType, .dataType, ((.values // []) | join("\n") | length), .name] | @tsv' "$inventory" | sort -t $'\t' -k3,3nr
+
+# Names only: values that look like an IP or email address, or carry error text.
+# Four-part version numbers also match the IP pattern; confirm each hit by hand.
+jq -r "$eas"' eas | select((.values // []) | join(" ") | test("\\b([0-9]{1,3}\\.){3}[0-9]{1,3}\\b|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")) | .name' "$inventory"
+jq -r "$eas"' eas | select((.values // []) | join(" ") | test("error|not found|no such file|permission denied"; "i")) | .name' "$inventory"
 ```
 
 Prefer `rg` for focused searches. Use `head`, `tail`, `sed -n`, `awk`, `file`, `wc`, `stat`, `zipinfo`, `unzip -l`, `unzip -p`, `unzip -t`, `gzcat` and `jq` to characterize large inputs before broad searches. For sysdiagnose archives, see [Archive And Log Commands](sysdiagnose/archive-and-log-commands.md).

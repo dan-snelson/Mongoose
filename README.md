@@ -16,7 +16,7 @@ This AI skill analyzes key logs …
 | `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
 | `/var/log/<rdnn>.log` | Yes | Your organization's reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` |
 | `/var/log/install.log` | Optional | Package and software-update activity |
-| MDM inventory JSON export | Optional | Server-side state at snapshot time |
+| MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
 
@@ -33,6 +33,8 @@ One Markdown report, `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, named from t
 - **Limitations and next steps:** prioritized recommendations for the owning teams, and one round of read-only Zsh follow-up commands.
 
 A re-audit adds a delta table (Fixed, Improved, Unchanged, Worse, Not observable) and re-test checklist results.
+
+With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step.
 
 ## Install
 
@@ -55,6 +57,10 @@ ln -s "$PWD/mongoose" ~/.agents/skills/mongoose
 Put captures in a git-ignored `logs/` directory, then ask:
 
 > Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
+
+With only a Computer Record JSON:
+
+> Run a preliminary Mongoose audit on `logs/<computer-id>_response_<epoch-ms>.json`.
 
 For a second pass:
 
