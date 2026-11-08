@@ -63,18 +63,20 @@ It copies `system.log`, the MDM agent log and your reverse-domain script log, wi
 | 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When unset, the bundle lacks it and the script warns |
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
-| 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `7d` |
+| 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
 sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists. Moving the archive off the Mac is up to you. It holds the same sensitive data as any capture.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
+
+> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
 
 ## Usage
 
-Put captures in a git-ignored `logs/` directory, then ask:
+Put captures in the git-ignored `logs/` directory, then ask:
 
 > Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
 
@@ -88,7 +90,7 @@ For a second pass:
 
 In Codex, you can also call it by name: `$mongoose`.
 
-After the redaction question, the reply ends with a one-line offer to run post-chat-refine, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
+After the redaction question, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
 
 ## Privacy
 
