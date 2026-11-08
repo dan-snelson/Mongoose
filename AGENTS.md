@@ -9,6 +9,7 @@ This repo holds Mongoose, an organization-neutral Agent Skill. It audits MDM pol
 - `mongoose/SKILL.md`: entry point. Keep it thin (about 40 lines): when to use, core invariants, workflow, which reference to load when.
 - `mongoose/references/`: detail, loaded on demand. Link every file from `SKILL.md`.
 - `mongoose/agents/openai.yaml`: Codex display metadata.
+- `scripts/mongooseCollect.zsh`: client-side collector that builds the `.zip` bundle Mongoose reads. It sits outside the skill; `SKILL.md` does not link it.
 
 ## Rules
 
@@ -17,7 +18,7 @@ This repo holds Mongoose, an organization-neutral Agent Skill. It audits MDM pol
 - Use Jamf Pro only as the worked example. Mention other MDMs generically and never invent their log paths. Treat community tools as optional examples, never as assumed components.
 - Keep `SKILL.md` frontmatter to `name` and `description`. The description is at most 1024 characters and contains no angle brackets.
 - Run `zsh -n` on any Zsh you add or change, including fenced `zsh` blocks in Markdown.
-- Keep changes narrow. Plain Markdown and YAML only; ask before adding a dependency.
+- Keep changes narrow. Plain Markdown, YAML and Zsh only; ask before adding a dependency.
 - Review `git diff --check` before finishing.
 
 ## Validation

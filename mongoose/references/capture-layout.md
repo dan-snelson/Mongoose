@@ -10,6 +10,7 @@ A ZIP or directory of copied `/var/log` files, made by a log-collection policy o
 - Treat the collection timestamp as collection time, not incident time.
 - Confirm what each member is from its first and last lines. Renamed and truncated files are common.
 - Collection scripts can copy a log while it is still being written and can skip missing rotated logs. See [Interpretation Rules](interpretation-rules.md).
+- A collection manifest member, for example `*-mongooseCollect-manifest.txt`, may state collection time with UTC offset, time zone, boot time, macOS build, serial number, and each member's size, source modification time and SHA-256, plus logs missing or not collected. Use it as a collection-time anchor and an inventory cross-check. Cite it like any member. Its time is collection time, not incident time.
 
 ## Device Identity
 
@@ -17,6 +18,7 @@ Reports name the Mac by serial number. Look for it in these places, and cite the
 
 - MDM inventory JSON export: search key paths for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path and snapshot time. Use the hardware or general serial; disk and certificate serials do not identify the Mac.
 - Organization scripts that print it to `<rdnn>.log`, such as onboarding or health-check banners.
+- A collection manifest member or a member-name prefix that carries it. Cross-check either against a log or inventory source.
 - Sysdiagnose hardware data in `SystemProfiler/*.spx`.
 - `Terminal Saved Output*.txt` transcripts that printed it.
 
@@ -43,5 +45,6 @@ Many fleets run community tools. None is assumed. Detect each from contents, the
 - App Auto-Patch: `*-aap.log`, `*-aap_verbose.log`, and App Auto-Patch 4 `*-aap4.log`.
 - Installomator, Setup Your Mac, DDM OS Reminder, Mac Health Check and Jamf Pro Health Check may write to their own logs or to `<rdnn>.log`. Identify them by banner or log prefix.
 - Endpoint privilege management audit logs, for example `defendpoint.audit.log`. Often structured multi-line records.
+- Jamf Pro Self Service: `*-selfservice.log` and `*-selfservice_debug.log`, copied from the console user's home. Expect end-user names and paths; sanitize them.
 
 Names and availability vary. Determine format from contents; do not rely only on file name, extension or `file` output.
