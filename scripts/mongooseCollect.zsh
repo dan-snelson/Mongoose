@@ -14,7 +14,7 @@
 #   Transferring the .zip is out of scope; the archive stays in the output directory.
 #
 #   Run as root, for example from a Jamf Pro policy, or locally:
-#       sudo zsh mongooseCollect.zsh / '' '' /var/log/com.example.log
+#       sudo zsh mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 #
 ####################################################################################################
 #
@@ -67,7 +67,7 @@ loggedInUser=$( echo "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { 
 # Jamf Pro Script Parameters
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# Parameter 4: Organization's reverse-domain script log (for example, /var/log/com.example.log)
+# Parameter 4: Organization's reverse-domain script log (for example, /var/log/org.churchofjesuschrist.log)
 scriptLog="${4:-""}"
 
 # Parameter 5: MDM agent log

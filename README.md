@@ -60,13 +60,13 @@ It copies `system.log`, the MDM agent log and your reverse-domain script log, wi
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/com.example.log` | None. When unset, the bundle lacks it and the script warns |
+| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When unset, the bundle lacks it and the script warns |
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
-sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.log
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 ```
 
 The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists. Moving the archive off the Mac is up to you. It holds the same sensitive data as any capture.
