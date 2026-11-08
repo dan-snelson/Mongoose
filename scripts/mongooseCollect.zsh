@@ -7,9 +7,10 @@
 #
 #   Gathers the client-side logs a full Mongoose audit reads into one flat .zip archive:
 #   system.log, the MDM agent log and the organization's reverse-domain script log, plus
-#   install.log, App Auto-Patch, EPM audit and Jamf Pro Self Service logs when present, and a
-#   collection manifest (collection time with offset, macOS build, boot time, serial number, and
-#   per-member size, modification time and SHA-256).
+#   install.log, App Auto-Patch and EPM audit logs when present, Jamf Pro Self Service+ entries
+#   exported from Unified Logging when Self Service+ is installed, and a collection manifest
+#   (collection time with offset, macOS build, boot time, serial number, and per-member size,
+#   modification time and SHA-256).
 #
 #   Transferring the .zip is out of scope; the archive stays in the output directory.
 #
@@ -22,6 +23,10 @@
 #
 #   Version 1.0.0, 07-Nov-2026, Dan K. Snelson (@dan-snelson)
 #       Initial release
+#
+#   Version 1.1.0, 08-Nov-2026, Dan K. Snelson (@dan-snelson)
+#       Collect Self Service+ Unified Logging entries (when installed) instead of the console
+#       user's Jamf Pro Self Service logs; add Parameter 7 (Self Service+ log window)
 #
 ####################################################################################################
 
@@ -43,7 +48,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="1.0.0"
+scriptVersion="1.1.0"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -58,13 +63,15 @@ collectionUTC=$( date -u -r "${collectionEpoch}" '+%Y-%m-%dT%H:%M:%SZ' )
 serialNumber=$( ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}' )
 [[ -z "${serialNumber}" ]] && serialNumber="unknown-serial"
 
-# Currently Logged-in User
-loggedInUser=$( echo "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }' )
+# Self Service+ logs to Unified Logging, not a file; find it by bundle ID (organizations rename it)
+selfServicePlusBundleID="com.jamf.selfserviceplus"
+selfServicePlusApp=""
+selfServicePlusVersion=""
 
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Jamf Pro Script Parameters
+# Script Parameters
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 # Parameter 4: Organization's reverse-domain script log (for example, /var/log/org.churchofjesuschrist.log)
@@ -76,6 +83,9 @@ mdmLog="${5:-"/var/log/jamf.log"}"
 # Parameter 6: Output directory
 outputDir="${6:-"/var/tmp"}"
 [[ "${outputDir}" != "/" ]] && outputDir="${outputDir%/}"
+
+# Parameter 7: Self Service+ log window, as passed to `log show --last` (for example, 1h, 1d or 7d)
+selfServicePlusWindow="${7:-"36h"}"
 
 
 
@@ -209,6 +219,55 @@ function collectRotated() {
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Find Self Service+ in /Applications by bundle ID; sets selfServicePlusApp and selfServicePlusVersion
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function findSelfServicePlus() {
+    local appPath infoPlist bundleID
+
+    for appPath in /Applications/*.app(N/); do
+        infoPlist="${appPath}/Contents/Info.plist"
+        [[ -f "${infoPlist}" ]] || continue
+        bundleID=$( /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${infoPlist}" 2>/dev/null )
+        if [[ "${bundleID}" == "${selfServicePlusBundleID}" ]]; then
+            selfServicePlusApp="${appPath}"
+            selfServicePlusVersion=$( /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${infoPlist}" 2>/dev/null )
+            return 0
+        fi
+    done
+    return 1
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Export Self Service+ Unified Logging entries into the staging directory
+#   (`log` is a Zsh builtin, so call /usr/bin/log by path)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function collectSelfServicePlusLog() {
+    local memberName="${memberPrefix}-selfserviceplus.log"
+    local destinationFile="${stagingDir}/${memberName}"
+    local logPredicate="subsystem BEGINSWITH \"${selfServicePlusBundleID}\""
+    local displaySource="log show --info --predicate '${logPredicate}' --last ${selfServicePlusWindow} --style compact"
+
+    if /usr/bin/log show --info --predicate "${logPredicate}" --last "${selfServicePlusWindow}" --style compact > "${destinationFile}"; then
+        chmod 644 "${destinationFile}"
+        collectedMembers+=( "${memberName}" )
+        collectedSources+=( "${displaySource}" )
+        info "Collected Self Service+ entries (last ${selfServicePlusWindow}) as ${memberName}"
+        return 0
+    fi
+
+    rm -f "${destinationFile}"
+    warning "Unable to export Self Service+ entries from Unified Logging"
+    absentOptional+=( "${displaySource} (export failed)" )
+    return 1
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Write the collection manifest (no hostname, usernames or IP addresses)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -246,9 +305,17 @@ function writeManifest() {
         print -r -- "Boot time (UTC): ${bootUTC}"
         print -r -- "Script log (Parameter 4): ${scriptLog:-not set}"
         print -r -- "MDM agent log (Parameter 5): ${mdmLog}"
+        print -r -- "Self Service+ log window (Parameter 7): ${selfServicePlusWindow}"
+        if [[ -n "${selfServicePlusApp}" ]]; then
+            print -r -- "Self Service+: ${selfServicePlusApp} (${selfServicePlusVersion:-unknown version})"
+        else
+            print -r -- "Self Service+: not installed"
+        fi
         print -r -- ""
         print -r -- "Logs were copied while live; a truncated last line is a collection artifact."
         print -r -- "Modified is the source file's modification time, kept by cp -p."
+        print -r -- "Self Service+ entries are exported with log show: Modified is export time, and"
+        print -r -- "compact style prints local time without a UTC offset (see Time zone)."
         print -r -- "SHA-256 is of the member as archived."
         print -r -- ""
         print -r -- "Members"
@@ -316,6 +383,17 @@ elif [[ ! -f "${scriptLog}" ]]; then
     preFlight "Script log '${scriptLog}' not found; logging to stdout only (it will not be created)"
 else
     preFlight "Script log '${scriptLog}' exists; appending log entries to it"
+fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Self Service+ log window
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ "${selfServicePlusWindow}" != <->[mhd] ]]; then
+    preFlight "Parameter 7 '${selfServicePlusWindow}' is not <number>m, h or d; using 7d"
+    selfServicePlusWindow="7d"
 fi
 
 
@@ -391,19 +469,13 @@ collectFile "/Library/Management/AppAutoPatch/logs/aap_verbose.log" "aap_verbose
 # Endpoint privilege management (BeyondTrust EPM)
 collectFile "/var/log/defendpoint/audit.log" "defendpoint.audit.log" "optional"
 
-# Jamf Pro Self Service (console user); the manifest shows "~", never the username
-if [[ -n "${loggedInUser}" && "${loggedInUser}" != "loginwindow" ]]; then
-    userHome=$( dscl . -read "/Users/${loggedInUser}" NFSHomeDirectory 2>/dev/null | awk -F': ' '/NFSHomeDirectory/ { print $2 }' )
-    if [[ -n "${userHome}" ]]; then
-        collectFile "${userHome}/Library/Logs/JAMF/selfservice.log" "selfservice.log" "optional" "~/Library/Logs/JAMF/selfservice.log"
-        collectFile "${userHome}/Library/Logs/JAMF/selfservice_debug.log" "selfservice_debug.log" "optional" "~/Library/Logs/JAMF/selfservice_debug.log"
-    else
-        info "Console user's home directory not found; skipped Self Service logs"
-        absentOptional+=( "~/Library/Logs/JAMF/selfservice*.log (home directory not found)" )
-    fi
+# Jamf Pro Self Service+ (Unified Logging; system-wide, so no console user is needed)
+if findSelfServicePlus; then
+    info "Found Self Service+ ${selfServicePlusVersion:-(unknown version)} at ${selfServicePlusApp}"
+    collectSelfServicePlusLog
 else
-    info "No console user; skipped Self Service logs"
-    absentOptional+=( "~/Library/Logs/JAMF/selfservice*.log (no console user)" )
+    info "Self Service+ not installed; skipped Self Service+ logs"
+    absentOptional+=( "Self Service+ logs (no app with bundle ID ${selfServicePlusBundleID} in /Applications)" )
 fi
 
 

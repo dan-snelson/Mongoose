@@ -56,13 +56,14 @@ ln -s "$PWD/mongoose" ~/.agents/skills/mongoose
 
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) builds the client-log bundle on the Mac being audited. Run it as root. It needs no MDM API access and no credentials.
 
-It copies `system.log`, the MDM agent log and your reverse-domain script log, with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs, the BeyondTrust EPM `audit.log` and the console user's Jamf Pro Self Service logs. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
+It copies `system.log`, the MDM agent log and your reverse-domain script log, with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
 | 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When unset, the bundle lacks it and the script warns |
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
+| 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `7d` |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.

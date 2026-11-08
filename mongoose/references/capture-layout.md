@@ -45,6 +45,6 @@ Many fleets run community tools. None is assumed. Detect each from contents, the
 - App Auto-Patch: `*-aap.log`, `*-aap_verbose.log`, and App Auto-Patch 4 `*-aap4.log`.
 - Installomator, Setup Your Mac, DDM OS Reminder, Mac Health Check and Jamf Pro Health Check may write to their own logs or to `<rdnn>.log`. Identify them by banner or log prefix.
 - Endpoint privilege management audit logs, for example `defendpoint.audit.log`. Often structured multi-line records.
-- Jamf Pro Self Service: `*-selfservice.log` and `*-selfservice_debug.log`, copied from the console user's home. Expect end-user names and paths; sanitize them.
+- Jamf Pro Self Service+: `*-selfserviceplus.log`, exported from Unified Logging with `log show --style compact`, which prints local time with no UTC offset; take the offset from the manifest. A member with only the header line means no entries in the window, bounded by the window and log retention. Expect end-user names and paths; sanitize them.
 
 Names and availability vary. Determine format from contents; do not rely only on file name, extension or `file` output.
