@@ -10,7 +10,7 @@ Detail for the workflow steps in `SKILL.md`.
 - **Device identity.** Record the Mac's serial number with its citation: `file:Lnn` or an inventory key path. Sources: [Capture Layout](capture-layout.md#device-identity). Cross-check every source that states it. If sources disagree, stop and ask, because the captures may come from different Macs. Never infer a serial from a hostname fragment or a partial string. If no source states it, report "not found in evidence".
 - **Hashes.** Hash each capture as received. Re-hash at the end; a changed hash means the handling failed and must be reported.
 - **Symptom and script focus.** Capture policy, script, process, PID, parent and child context, executable path, exit status, signal, duration and adjacent events when available. Search the narrowest relevant time window and source first, then widen. Correlate the same policy, script, package, process, path, subsystem, declaration or event across sources.
-- **Baseline health.** Run it after the focused analysis. Do not let unrelated background warnings displace the reported problem.
+- **Broad health.** Run it after the focused analysis. Do not let unrelated background warnings displace the reported problem.
 - **Timeline.** Explain how each event supports or weakens each hypothesis.
 - **Transcripts.** Review `Terminal Saved Output*.txt` transcripts in sequence when present. Keep each generated command and its returned result as a pair; use later output to confirm, refine or reject earlier ideas.
 - **Report.** Include evidence, confidence, alternatives, recommendations, privacy exposure, limitations and next commands.

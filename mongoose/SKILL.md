@@ -1,6 +1,6 @@
 ---
 name: mongoose
-description: Deep audit of MDM policies and custom script deployments on managed Macs. Reads system.log, the MDM agent log (for example jamf.log) and the organization's reverse-domain script log (for example com.example.it.log), plus optional install.log, an MDM inventory JSON export and an Apple sysdiagnose, usually from a client-log bundle. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Produces an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial number and sanitizing other identifiers, with a timeline, a per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Also re-audits prior findings with a delta vs prior audit. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, system.log, jamf.log, install.log, reverse-domain script log, client-log bundle, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit.
+description: Deep audit of MDM policies and custom script deployments on managed Macs. Reads system.log, the MDM agent log (for example jamf.log) and the organization's reverse-domain script log (for example com.example.it.log), plus optional install.log, an MDM inventory JSON export and an Apple sysdiagnose. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Produces an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial number and sanitizing other identifiers, with a timeline, a per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Re-audits prior findings with a delta vs prior audit. Compares audits with an environment baseline set from a full report, never a preliminary one. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, client-log bundle, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit, set baseline.
 ---
 # Mongoose
 
@@ -21,13 +21,13 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 
 ## Workflow
 
-1. **Inventory.** List every capture and member from contents, not names. Note gaps and truncation. Record the Mac's serial number and the source that states it.
+1. **Inventory.** List every capture and member from contents, not names. Note gaps and truncation. Record the Mac's serial number and the source that states it. Check for a set baseline.
 2. **Hashes.** Record SHA-256 of every capture before analysis; re-check at the end.
 3. **Time context.** Establish offsets and anchors before correlating anything.
 4. **Symptom and script focus.** Locate the reported symptom, then assess each organization script through the script-deployment lens.
-5. **Baseline health.** Run a broad health pass without letting background noise displace the focus.
+5. **Broad health.** Run a broad health pass without letting background noise displace the focus.
 6. **Timeline.** Build one material timeline, normalized to one offset, citing original `file:Lnn` and timestamp.
-7. **GBU report.** Write the report; on a second pass, add the delta vs prior audit.
+7. **GBU report.** Write the report; add the delta vs prior audit on a second pass, and the delta vs baseline when one is set.
 8. **Follow-up commands.** One round of grouped, read-only, paste-ready Zsh.
 9. **Redaction prompt.** Once the findings are complete, ask whether to redact the serial number. If yes, replace it with `<serial>` throughout the report and confirm no copy remains.
 10. **Offer post-chat-refine.** Only after the step 9 question is answered, end the closing reply with one line offering to fold this run's durable learnings back into the skill. Never ask both questions in one message. The offer goes in the reply, never in the report. Once declined, don't offer again this session.
@@ -41,7 +41,8 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 - Step 4: [Script-Deployment Playbooks](references/script-deployment-playbooks.md).
 - Before classifying any finding as Good, Bad or Ugly: [Interpretation Rules](references/interpretation-rules.md).
 - Steps 7-9: [Report: The Good, The Bad, And The Ugly](references/report-gbu.md).
-- A prior report or baseline capture is supplied: [Re-Audit Delta](references/re-audit-delta.md).
+- A prior report or prior capture of the same Mac is supplied: [Re-Audit Delta](references/re-audit-delta.md).
+- The Mac Admin asks to set a baseline, or `reports/mongoose-baseline.md` exists: [Environment Baseline](references/environment-baseline.md). Only a full audit qualifies, never a preliminary report.
 - A sysdiagnose is supplied: [Sysdiagnose Capture Layout](references/sysdiagnose/capture-layout.md), [Archive And Log Commands](references/sysdiagnose/archive-and-log-commands.md) and [Analysis Workflow](references/sysdiagnose/analysis-workflow.md).
 - Enrollment or Setup Assistant handoff in a sysdiagnose: [ADE Handoffs](references/sysdiagnose/ade-handoffs.md).
 - Privacy-proxy or OHTTP failure with a content filter, DNS proxy or VPN present: [Network Filters And OHTTP](references/sysdiagnose/network-filter-ohttp.md).

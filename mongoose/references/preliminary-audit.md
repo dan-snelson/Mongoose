@@ -93,6 +93,7 @@ Follow [Report: The Good, The Bad, And The Ugly](report-gbu.md) with these chang
 - **Evidence and method:** replace the Members table with a Sections table: section, items, notes (empty, absent, stale).
 - **Time context:** one row per time field above, normalized to UTC.
 - **Lens:** the extension-attribute lens replaces the script-deployment lens.
+- **Baseline:** a preliminary report can never be set as the environment baseline. The full audit's report can ([Environment Baseline](environment-baseline.md)).
 - **Next steps:** P1 is always to collect the client-log bundle, or retrieve an attachment that holds one, and run the full audit with this report as the prior report ([Re-Audit Delta](re-audit-delta.md)). Follow-up commands confirm inventory values on the Mac:
 
 ```zsh

@@ -14,6 +14,7 @@
 - **Inf:** inference, with a confidence level (high, medium or low).
 - **Conclusion:** only when independent signals agree.
 - **New:** re-audit only. A finding that is not in the prior report.
+- **In baseline / Off-baseline:** baseline set only. Whether the finding also appears in the environment baseline. Method: [Environment Baseline](environment-baseline.md).
 
 ## Classes
 
@@ -23,9 +24,9 @@
 
 ## Order
 
-1. **Header.** Scope. Mac: serial number with its source citation, plus model and OS when the evidence states them; if no source states a serial, say so here and under Limitations. Evidence window: start and end with their original offsets, plus duration from first boot. Prepared date and sanitization statement. Label legend.
+1. **Header.** Scope. Mac: serial number with its source citation, plus model and OS when the evidence states them; if no source states a serial, say so here and under Limitations. Evidence window: start and end with their original offsets, plus duration from first boot. Baseline, when one is set: report file, set date and SHA-256 prefix. Prepared date and sanitization statement. Label legend.
 2. **Evidence and method.**
-   - Captures table: name, class (baseline or new), collection or snapshot time, integrity check, SHA-256 prefix.
+   - Captures table: name, class (prior or new), collection or snapshot time, integrity check, SHA-256 prefix.
    - Members table: member, lines, notes (truncated tail, rotated, missing).
    - Handling: hashes before and after, nothing executed, streamed not extracted. Name any extraction and where it went.
    - Skills applied: `mongoose` and the references used.
@@ -34,6 +35,7 @@
    - Material timeline, normalized to one offset. Each row cites the original source as `file:Lnn` with the original timestamp.
 4. **1. Executive summary.** Three to six sentences: overall health, primary findings, confidence, material limitations.
 5. **Re-audit only.** "Delta vs. prior audit", then "Re-test checklist results". Method: [Re-Audit Delta](re-audit-delta.md).
+   **Baseline set only.** "Delta vs. baseline". Method: [Environment Baseline](environment-baseline.md).
 6. **2. The Good, 3. The Bad, 4. The Ugly.** Numbered findings. Each has Obs, Inf and Conclusion bullets with citations, plus alternatives still open where relevant.
 7. **5. Cross-cutting observations.** Patterns across findings, including the script-deployment lens. With a sysdiagnose, cover crashes and hangs, performance, power and thermal, network, storage, and security and privacy; mark unavailable categories and why.
 8. **6. Limitations and missing evidence.** Missing artifacts, collection failures, truncation, short log coverage, snapshot age, uncertain time context and untested assumptions.
@@ -105,14 +107,15 @@ rg -c -F -- "$serial" "$report" || print -r -- '0'
 - **Scope:** <what was audited and why>
 - **Mac:** Serial number `<serial>` (`<file>:L<n>` or `<key path>`); <model>; macOS <version> (<build>)
 - **Evidence window:** <start with original offset> to <end with original offset>; <duration> from first boot
+- **Baseline:** `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, set <YYYY-MM-DD> (`<sha256-prefix>`) (baseline set only)
 - **Prepared:** <YYYY-MM-DD>. Sanitized: identifiers other than the serial number replaced with placeholders.
-- **Labels:** Obs = observation. Inf = inference (confidence). Conclusion = independent signals agree. **New** = not in prior audit.
+- **Labels:** Obs = observation. Inf = inference (confidence). Conclusion = independent signals agree. **New** = not in prior audit. **In baseline** / **Off-baseline** = also in, or absent from, the environment baseline.
 
 ## Evidence and method
 
 | Capture | Class | Collection / snapshot time | Integrity | SHA-256 |
 |---|---|---|---|---|
-| `<capture>` | baseline / new | <time with offset> | <unzip -t OK> | `<sha256-prefix>` |
+| `<capture>` | prior / new | <time with offset> | <unzip -t OK> | `<sha256-prefix>` |
 
 | Member | Lines | Notes |
 |---|---|---|
@@ -138,6 +141,8 @@ rg -c -F -- "$serial" "$report" || print -r -- '0'
 ## Delta vs. prior audit (re-audit only)
 
 ## Re-test checklist results (re-audit only)
+
+## Delta vs. baseline (baseline set only)
 
 ## 2. The Good
 

@@ -19,6 +19,7 @@ This AI skill analyzes key logs …
 | MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
+| An environment baseline (`reports/mongoose-baseline.md`) | Optional | Compares each audit with the full report you set as your environment's reference |
 
 These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp. Mongoose detects the layout from the contents, not the names.
 
@@ -34,7 +35,9 @@ One Markdown report, `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, named from t
 
 A re-audit adds a delta table (Fixed, Improved, Unchanged, Worse, Not observable) and re-test checklist results.
 
-With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step.
+You can set one full report as your environment baseline. Every later audit, of any Mac, then adds a delta vs. baseline and tags each finding In baseline or Off-baseline. The baseline never hides or downgrades a finding. Mongoose stores only a pointer and the report's SHA-256 in `reports/mongoose-baseline.md`, and asks before using a report that has changed since.
+
+With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
 
 ## Install
 
@@ -86,7 +89,11 @@ With only a Computer Record JSON:
 
 For a second pass:
 
-> Re-audit with Mongoose. Baseline: `logs/<baseline>.zip` and `reports/mongoose-gbu-<timestamp>.md`. New: `logs/<new>.zip`. Stated changes: <list>.
+> Re-audit with Mongoose. Prior: `logs/<prior>.zip` and `reports/mongoose-gbu-<timestamp>.md`. New: `logs/<new>.zip`. Stated changes: <list>.
+
+To set your environment baseline from a full report:
+
+> Set `reports/mongoose-gbu-<timestamp>.md` as the Mongoose baseline.
 
 In Codex, you can also call it by name: `$mongoose`.
 

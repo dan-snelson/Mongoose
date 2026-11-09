@@ -34,7 +34,7 @@ find "$repo/mongoose/references" -name '*.md' -exec wc -lc {} + | sort -rn
    Headings inside fenced blocks also match; ignore them. Measure large bullets too (`sed -n '<n>p' "$file" | wc -c`), because sections hide conditional bullets.
 3. Classify every section, step and large bullet:
    - **Keep** in `SKILL.md`: the frontmatter, Core Invariants, the Workflow skeleton and Load When.
-   - **Move** when only some runs need it, and only when `SKILL.md` can name a clear Load When trigger for it, such as "a sysdiagnose is supplied" or "a prior report or baseline capture is supplied".
+   - **Move** when only some runs need it, and only when `SKILL.md` can name a clear Load When trigger for it, such as "a sysdiagnose is supplied" or "a prior report or prior capture of the same Mac is supplied".
    - **Trim** when a reference already says it. Replace it with a pointer, or delete it when a Load When bullet already covers it. A trimmed duplicate can hold a detail found nowhere else; plan to merge that detail into the destination.
    - In an oversized reference, classify each section the same way: which runs need it, and what trigger would load it.
 4. Choose destinations:
