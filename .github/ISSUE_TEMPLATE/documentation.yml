@@ -1,0 +1,87 @@
+name: Documentation
+description: Report missing, unclear, or outdated documentation for Mongoose
+title: "[Docs]: "
+labels: ["documentation"]
+assignees:
+  - dan-snelson
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for documentation-only issues: README gaps, install, collect or usage guidance, reference-file drift, examples, or wording updates.
+
+        If the agent behaved incorrectly while following Mongoose's instructions, or `mongooseCollect.zsh` failed, use the **Bug Report** form instead.
+
+        If an example in this repo contains real or identifying data, name the file and line only; do not repeat the data here.
+
+  - type: dropdown
+    id: docs-area
+    attributes:
+      label: Which documentation area needs attention?
+      options:
+        - README.md
+        - AGENTS.md or CLAUDE.md
+        - mongoose/SKILL.md
+        - Evidence and capture references (evidence-safety.md, capture-layout.md, inventory-commands.md)
+        - Time context (time-context.md)
+        - Script-deployment playbooks (script-deployment-playbooks.md)
+        - Interpretation and report (interpretation-rules.md, report-gbu.md)
+        - Preliminary audit (preliminary-audit.md)
+        - Re-audit and baseline (re-audit-delta.md, environment-baseline.md)
+        - Sysdiagnose references (sysdiagnose/)
+        - Maintenance references (post-chat-refine.md, binge-and-purge.md)
+        - Collector script header and parameters (scripts/mongooseCollect.zsh)
+        - Install, collect or usage instructions
+        - Issue templates
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: What kind of documentation problem is this?
+      options:
+        - Incorrect or outdated information
+        - Missing instructions or example
+        - Confusing wording or structure
+        - Broken link or bad reference
+        - README and SKILL.md disagree
+        - Example contains real or identifying data
+        - Typo or grammar issue
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-docs
+    attributes:
+      label: What is wrong today?
+      description: Describe the current documentation problem.
+      placeholder: |
+        Example: The README's Collect section doesn't say which Jamf Pro parameter controls the Self Service+ log window.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-update
+    attributes:
+      label: What should it say instead?
+      description: Suggest corrected wording, structure, or content when possible.
+      placeholder: |
+        Example: Add the parameter, its accepted format and its default to the README's parameter table.
+    validations:
+      required: true
+
+  - type: input
+    id: affected-links
+    attributes:
+      label: Affected file or URL
+      description: Add the repo path, section heading, or public URL that needs updating.
+      placeholder: "e.g. README.md Collect, mongoose/SKILL.md Load When, or mongoose/references/time-context.md"
+
+  - type: textarea
+    id: supporting-context
+    attributes:
+      label: Supporting context
+      description: Add references, related commits, or agent and version context.

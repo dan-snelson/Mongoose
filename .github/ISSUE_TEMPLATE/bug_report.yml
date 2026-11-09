@@ -1,0 +1,222 @@
+name: Bug Report
+description: Something is sideways with Mongoose
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - dan-snelson
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you** for taking time to file a bug report for Mongoose!
+
+        Please complete the following form with as much detail as possible.
+
+        If you're not sure about something, do your best. (The more information included, the easier it is to investigate and _hopefully_ resolve your issue.)
+
+        Misclassified findings (Good, Bad or Ugly), wrong timelines, missed script problems, identifiers left in a report and `mongooseCollect.zsh` failures are welcome here. If you have found a **security vulnerability in Mongoose itself**, do **not** file it here; email security@snelson.us instead.
+
+        **Captures and Mongoose reports hold serial numbers, hostnames, usernames, IPs, MDM URLs and configuration from real Macs.** Never attach a client-log bundle, sysdiagnose, MDM inventory JSON or full report to this issue. Share only short excerpts, sanitized with placeholders such as `<serial>`, `<computer-id>`, `<hostname>`, `<end-user>`, `<mdm-url>` and `com.example`.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you submit
+      options:
+        - label: I reproduced this with a current checkout of `main` or `development`
+          required: true
+        - label: I replaced serial numbers, computer IDs, hostnames, usernames, IPs, SSIDs, MDM URLs, group names and secrets with placeholders in everything below
+          required: true
+        - label: This is not a security vulnerability in Mongoose or `mongooseCollect.zsh`
+          required: true
+
+  - type: input
+    id: mongoose-commit
+    attributes:
+      label: Mongoose commit
+      description: From `git -C /path/to/Mongoose rev-parse --short HEAD`, or the commit you copied `mongoose/` from.
+      placeholder: "e.g. e0eb0df"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Which agent ran Mongoose?
+      options:
+        - Claude Code
+        - Codex
+        - Something else not on this list
+        - Not applicable (mongooseCollect.zsh only)
+    validations:
+      required: true
+
+  - type: input
+    id: agent-version
+    attributes:
+      label: Agent version
+      description: From `claude --version` or `codex --version`. Skip for a `mongooseCollect.zsh`-only bug.
+      placeholder: "e.g. 2.1.0"
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The model the agent was using, if known.
+      placeholder: "e.g. claude-opus-5-5"
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How is Mongoose installed?
+      options:
+        - Symlinked to a checkout of this repo (`ln -s ...`)
+        - Copied into a personal skills directory (`cp -R mongoose ...`)
+        - Project- or repo-scoped skills directory
+        - Something else not on this list
+        - Not applicable (mongooseCollect.zsh only)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run-type
+    attributes:
+      label: What were you running?
+      options:
+        - Full GBU audit
+        - Preliminary audit (MDM inventory JSON only)
+        - Re-audit with delta vs prior audit
+        - Setting or comparing an environment baseline
+        - post-chat-refine or binge-and-purge
+        - mongooseCollect.zsh (client-side collector)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: inputs
+    attributes:
+      label: Which inputs were supplied?
+      description: Select all that apply. Do not attach them.
+      multiple: true
+      options:
+        - system.log (with or without rotated files)
+        - MDM agent log (for example jamf.log)
+        - Reverse-domain script log (for example com.example.it.log)
+        - install.log
+        - Self Service+ unified log export
+        - App Auto-Patch or EPM audit logs
+        - MDM inventory JSON export (for example a Jamf Pro Computer Record)
+        - Apple sysdiagnose
+        - Terminal Saved Output transcripts
+        - Prior Mongoose report
+        - Environment baseline (reports/mongoose-baseline.md)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: packaging
+    attributes:
+      label: How did the evidence arrive?
+      options:
+        - ZIP built by mongooseCollect.zsh
+        - Another client-log bundle ZIP
+        - Directory of copied /var/log files
+        - Sysdiagnose archive or extracted tree
+        - Individual files
+        - Not applicable
+    validations:
+      required: false
+
+  - type: dropdown
+    id: mdm
+    attributes:
+      label: Which MDM manages the audited Mac?
+      description: Jamf Pro is Mongoose's worked example; other MDMs are handled generically.
+      options:
+        - Jamf Pro
+        - Another MDM
+        - Not applicable
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Which area looks broken?
+      options:
+        - Capture inventory or layout detection (capture-layout.md, inventory-commands.md)
+        - Evidence handling, hashes or citations (evidence-safety.md)
+        - Sanitization or serial redaction (identifiers left in a report)
+        - Time context or timeline (time-context.md)
+        - Script-deployment lens (script-deployment-playbooks.md)
+        - Finding classification as Good, Bad or Ugly (interpretation-rules.md)
+        - Report structure or file naming (report-gbu.md)
+        - Preliminary audit (preliminary-audit.md)
+        - Re-audit delta (re-audit-delta.md)
+        - Environment baseline (environment-baseline.md)
+        - Sysdiagnose analysis (sysdiagnose references)
+        - Follow-up Zsh commands
+        - Collector script (mongooseCollect.zsh)
+        - post-chat-refine or binge-and-purge
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: collector-context
+    attributes:
+      label: Collector context
+      description: For `mongooseCollect.zsh` bugs only. Include how it ran (Jamf Pro policy, another MDM, or locally with `sudo`), the parameters 4-7 you passed (as placeholders), and the macOS version from `sw_vers` on the audited Mac.
+      placeholder: |
+        Example: Jamf Pro policy; Parameter 4 `/var/log/com.example.it.log`, Parameters 5-7 default; macOS 26.1
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe actual behavior.
+      placeholder: |
+        Example: The timeline mixed `jamf.log` local times with `system.log` times from a different offset without normalizing them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: What did you expect to happen?
+      placeholder: |
+        Example: Every timeline row normalized to one offset, citing the original `file:Lnn` and timestamp, per SKILL.md Workflow step 6.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps make bugs much easier to act on. A minimal, synthetic log excerpt that reproduces the issue is the most helpful thing you can include.
+      placeholder: |
+        1. Install Mongoose by symlinking `mongoose/` into `~/.claude/skills/`
+        2. Build a bundle with `sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log`
+        3. Ask: "Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `com.example.it.log`."
+        4. Observe the unexpected behavior in `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic artifacts
+      description: Drag and drop **sanitized** attachments here. Never attach a capture, sysdiagnose, inventory JSON or full report.
+      placeholder: |
+        Attach any of the following when available, sanitized with placeholders:
+        - A minimal, synthetic log excerpt that reproduces the issue
+        - The bundle's member list (`zipinfo -1 <bundle>.zip`), with the serial replaced by `<serial>`
+        - The relevant agent transcript excerpt
+        - The relevant report section (never the full report)
+        - For collector bugs, the script's console output
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Anything else
+      description: Include permission or sandbox mode, workarounds, or environment details that do not fit above.
