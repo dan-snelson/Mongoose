@@ -7,3 +7,6 @@ sysdiagnose_*
 .envrc
 .claude/settings.local.json
 .DS_Store
+
+# Local deployment helper and release history (never commit)
+.deploy*
