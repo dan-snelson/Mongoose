@@ -27,7 +27,7 @@ To compare a different Mac with the environment's reference report, use [Environ
 - Measure each window from first boot.
 - Cut the prior capture to the same duration as the new window, per source. Record the cut lines as `file:Lstart-Lend` with their original timestamps.
 - Normalize counts to rates: per hour, per boot or per policy run.
-- Re-measure the prior capture with the same commands and patterns used on the new capture. Note any difference from the prior report's figures and its cause (method, window or counting).
+- Re-measure the prior capture with the same commands and patterns used on the new capture. Note any difference from the prior report's figures and its cause (method, window, counting or skill version).
 
 ## 5. Check Comparability Before Judging
 
@@ -38,6 +38,7 @@ To compare a different Mac with the environment's reference report, use [Environ
 | Scope or ring | Did opt-ins or group changes move the Mac between smart groups mid-window? | Split the window at the change |
 | Inventory snapshot age | Were the snapshots taken at a similar age after enrollment? | Compare only time-independent values |
 | Counting method | Same patterns and splitting rules? | Re-count the prior capture |
+| Skill version | Same `mongoose @ <short-sha>` in both reports' Skills applied line? A report without one predates the stamp | Name both versions. Attribute a changed classification or count to the skill, not the Mac, until re-measurement shows otherwise |
 
 ## 6. Delta Table
 

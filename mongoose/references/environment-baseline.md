@@ -8,7 +8,7 @@ A baseline is the Mac Admin's reference for how managed Macs behave in their env
 
 Check the report itself, not the request. Only a full audit report qualifies:
 
-- File name `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md` and title `# Mongoose: The Good, The Bad, and The Ugly`.
+- File name `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, or the same name with a `-<n>` rerun suffix, and title `# Mongoose: The Good, The Bad, and The Ugly`.
 - The Members table covers `system.log`, `<mdm>.log` and `<rdnn>.log`.
 - The Handling line shows matching SHA-256 before and after.
 
@@ -61,7 +61,7 @@ At SKILL.md Step 1, when `reports/mongoose-baseline.md` exists:
 - Write this audit's findings from its own evidence first. Compare at SKILL.md Step 7, so the baseline cannot steer them.
 - If the baseline's captures are in `logs/` and match the record's SHA-256, re-measure them with the same commands and patterns as this audit. Otherwise compare with the report's figures and say so under Limitations.
 - Expect a different serial number. If it matches the baseline's, ask whether a re-audit delta was meant. Skip this check when the baseline report redacted the serial.
-- Apply the comparability checks in [Re-Audit Delta](re-audit-delta.md#5-check-comparability-before-judging), plus model and architecture, MDM agent version, and scope or ring.
+- Apply the comparability checks in [Re-Audit Delta](re-audit-delta.md#5-check-comparability-before-judging), skill version included, plus model and architecture, MDM agent version, and scope or ring.
 - A preliminary audit compares only areas both reports observe. Mark the rest Not observable.
 
 ## Delta Vs. Baseline

@@ -27,17 +27,44 @@ These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/
 
 One Markdown report, `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, named from the capture's collection timestamp:
 
-- **Header and method:** scope, evidence window, capture hashes, and how the evidence was handled.
+- **Header and method:** scope, evidence window, capture hashes, how the evidence was handled, and provenance: when the report was prepared, which model wrote it, and which Mongoose commit it ran from.
 - **Time context:** how each source's timestamps were normalized, and one cited timeline.
 - **The Good, The Bad, The Ugly:** numbered findings, each split into observation, inference and conclusion, with `file:line` citations.
 - **Script-deployment lens:** per script, versioned logging, time offsets, exit codes and duration, concurrency, redundant runs, secrets in policy parameters, personal data in uploaded logs, and log noise.
 - **Limitations and next steps:** prioritized recommendations for the owning teams, and one round of read-only Zsh follow-up commands.
+
+Every `file:Lnn` citation is re-read from its source before the reply. A report never overwrites another; a rerun gets a `-2`, `-3` suffix.
 
 A re-audit adds a delta table (Fixed, Improved, Unchanged, Worse, Not observable) and re-test checklist results.
 
 You can set one full report as your environment baseline. Every later audit, of any Mac, then adds a delta vs. baseline and tags each finding In baseline or Off-baseline. The baseline never hides or downgrades a finding. Mongoose stores only a pointer and the report's SHA-256 in `reports/mongoose-baseline.md`, and asks before using a report that has changed since.
 
 With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
+
+## Layout
+
+```
+mongoose/
+├── SKILL.md                          # Entry point: invariants, workflow, which reference to load when
+├── agents/
+│   └── openai.yaml                   # Codex display metadata
+└── references/
+    ├── evidence-safety.md            # Citations, privacy, placeholders, failure modes (always loaded)
+    ├── capture-layout.md             # Bundle members and device identity
+    ├── inventory-commands.md         # Read-only hashing and streaming commands
+    ├── time-context.md               # Offsets, anchors and normalization
+    ├── script-deployment-playbooks.md  # Per-script measurements
+    ├── interpretation-rules.md       # Patterns that change a Good, Bad or Ugly call
+    ├── report-gbu.md                 # Report file, provenance, order, citation check, redaction
+    ├── preliminary-audit.md          # Inventory-JSON-only runs
+    ├── re-audit-delta.md             # Second pass on the same Mac
+    ├── environment-baseline.md       # Set and compare with a reference report
+    ├── post-chat-refine.md           # Fold a run's learnings back into the skill (on request)
+    ├── binge-and-purge.md            # Slim SKILL.md and oversized references (on request)
+    └── sysdiagnose/                  # Layout, commands, workflow, ADE handoffs, network filters
+scripts/
+└── mongooseCollect.zsh               # Root collector that builds the client-log bundle
+```
 
 ## Install
 
@@ -79,6 +106,13 @@ The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by 
 
 ## Usage
 
+Mongoose activates when a request matches its description. You can also call it by name.
+
+| Agent | Explicit invocation |
+|---|---|
+| Claude Code | `/mongoose` or "Run a Mongoose GBU audit …" |
+| Codex | `$mongoose` or "Run a Mongoose GBU audit …" |
+
 Put captures in the git-ignored `logs/` directory, then ask:
 
 > Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
@@ -95,13 +129,17 @@ To set your environment baseline from a full report:
 
 > Set `reports/mongoose-gbu-<timestamp>.md` as the Mongoose baseline.
 
-In Codex, you can also call it by name: `$mongoose`.
-
 After the redaction question, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
 
 ## Privacy
 
 Captures and reports hold identifiers, paths and configuration from real Macs. Keep them local. This repo's `.gitignore` excludes `logs/`, `reports/`, archives and sysdiagnose trees. Mongoose reads evidence without changing it, never runs anything found in a capture, names each report's Mac by serial number, replaces other identifiers with placeholders, and offers to redact the serial once the findings are done.
+
+## Contributing and security
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): pull requests, skill and collector rules, validation.
+- [SECURITY.md](SECURITY.md): report vulnerabilities in Mongoose or `mongooseCollect.zsh` privately.
+- [CHANGELOG.md](CHANGELOG.md): changes by date.
 
 ## License
 

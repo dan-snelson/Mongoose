@@ -23,6 +23,8 @@ This repo holds Mongoose, an organization-neutral Agent Skill. It audits MDM pol
 
 ## Validation
 
+The Security Scan workflow (`.github/workflows/security-scan.yml`) runs steps 2-5 on every push and pull request to `main` and `development`; step 2 lands in its job summary for human review. Still run them locally before finishing, and run step 1 yourself, because CI has no `quick_validate.py`.
+
 1. `python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py mongoose` passes. It needs a Python 3 with PyYAML.
 2. No identifying data. Search for your own organization's names and domains, then review every hit of these by hand:
 
