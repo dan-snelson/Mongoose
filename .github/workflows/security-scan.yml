@@ -1,0 +1,311 @@
+# Security Scan for Mongoose.
+#
+# Mongoose's attack surface is the Markdown an agent follows (mongoose/SKILL.md
+# and mongoose/references/), the Zsh fenced inside it, and the root collector
+# scripts/mongooseCollect.zsh. This workflow automates AGENTS.md Validation
+# steps 2-5; step 1 (quick_validate.py) stays a local check.
+#
+# - Gitleaks scans the full git history for secrets, including any that
+#   post-chat-refine might copy from a capture into the skill.
+# - Snippet Syntax runs `zsh -n` on every tracked .zsh file and on every
+#   fenced zsh block in tracked Markdown.
+# - Skill Integrity blocks hidden Unicode and HTML comments that an agent reads
+#   but a rendered view hides, trailing whitespace, tracked captures, reports
+#   and local agent settings, and drift in SKILL.md frontmatter, links and
+#   budget.
+# - Identifier Scan lists hits for the AGENTS.md identifier patterns in the
+#   job summary for human review. It never fails.
+#
+# Every check is Zsh, per AGENTS.md: plain Markdown, YAML and Zsh only.
+
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+    branches:
+      - main
+      - development
+  schedule:
+    - cron: '17 3 * * 3'
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check Out Repository
+        # Fetch full history so Gitleaks can scan past commits.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PR comments stay off to keep Gitleaks read-only.
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_SUMMARY: "true"
+          # If a capture's credential ever reaches the skill, rotate it and
+          # purge it from history; deleting the line is not enough. Tune
+          # accepted false positives with .gitleaks.toml or .gitleaksignore.
+
+  snippet_syntax:
+    name: Snippet Syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Zsh
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+
+      - name: Run zsh -n On Zsh Files And Fenced Blocks
+        shell: zsh {0}
+        run: |
+          emulate -R zsh
+          setopt pipe_fail
+          out="${RUNNER_TEMP:-$(mktemp -d)}/snippets"
+          mkdir -p "$out"
+          failures=0 files=0 blocks=0
+
+          # Every tracked Zsh file, including the root collector.
+          for file in ${(f)"$(git ls-files '*.zsh')"}; do
+            (( ++files ))
+            if ! zsh -n "$file"; then
+              print -r -- "::error file=$file::zsh -n failed"
+              (( ++failures ))
+            fi
+          done
+
+          # Every fenced zsh block in tracked Markdown (AGENTS.md Validation step 4).
+          # Backtick and tilde fences of three or more characters; a closing fence
+          # uses the same character and is at least as long as its opening fence.
+          for md in ${(f)"$(git ls-files '*.md')"}; do
+            fence='' n=0
+            while IFS= read -r line || [[ -n "$line" ]]; do
+              (( ++n ))
+              if [[ -z "$fence" ]]; then
+                [[ "$line" =~ '^( *)(```+|~~~+) *([A-Za-z0-9_+-]*)' ]] || continue
+                fence=$match[2] indent=${#match[1]} lang=${(L)match[3]} start=$n
+                body=()
+              elif [[ "$line" =~ "^ *[${fence[1]}]{${#fence},} *\$" ]]; then
+                if [[ "$lang" == zsh ]]; then
+                  (( ++blocks ))
+                  snippet="$out/${md//[^A-Za-z0-9]/_}_L$start.zsh"
+                  print -rl -- '#!/bin/zsh' "${body[@]}" > "$snippet"
+                  if ! zsh -n "$snippet"; then
+                    print -r -- "::error file=$md,line=$start::Fenced zsh block fails zsh -n"
+                    (( ++failures ))
+                  fi
+                fi
+                fence=''
+              else
+                body+=("${line#${(l:indent:)}}")
+              fi
+            done < "$md"
+          done
+
+          {
+            print -r -- '### Snippet Syntax'
+            print
+            print -r -- "Checked $files tracked Zsh file(s) and $blocks fenced zsh block(s) with \`zsh -n\`."
+            if (( failures )); then
+              print -r -- "❌ $failures failed. See the annotations."
+            else
+              print -r -- '✅ All passed.'
+            fi
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+
+          (( failures == 0 ))
+
+  skill_integrity:
+    name: Skill Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Zsh
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+
+      - name: Run Skill Integrity Checks
+        shell: zsh {0}
+        env:
+          # The hidden-Unicode check needs a UTF-8 locale.
+          LC_ALL: C.UTF-8
+        run: |
+          emulate -R zsh
+          setopt pipe_fail
+          failures=0 warnings=0
+
+          annotate() {  # level message [file [line]]
+            local where=''
+            [[ -n "${3-}" ]] && where=" file=$3"
+            [[ -n "${4-}" ]] && where+=",line=$4"
+            print -r -- "::$1${where}::$2"
+          }
+          fail() { annotate error "$@"; (( ++failures )) }
+          warn() { annotate warning "$@"; (( ++warnings )) }
+
+          skill=mongoose/SKILL.md
+
+          # Hidden or bidirectional Unicode, HTML comments in Markdown, and trailing
+          # whitespace. An agent reads hidden characters and comments that a rendered
+          # view never shows.
+          # Built from code points so this file holds none of them: soft hyphen,
+          # Arabic letter mark, Mongolian vowel separator, zero-width and
+          # bidirectional controls, invisible operators, BOM and Unicode tags.
+          codepoint() { print -rn -- "${(#)1}" }
+          hidden="[$(codepoint 0xAD)$(codepoint 0x61C)$(codepoint 0x180E)$(codepoint 0x200B)-$(codepoint 0x200F)$(codepoint 0x202A)-$(codepoint 0x202E)$(codepoint 0x2060)-$(codepoint 0x2064)$(codepoint 0x2066)-$(codepoint 0x2069)$(codepoint 0xFEFF)$(codepoint 0xE0000)-$(codepoint 0xE007F)]"
+          for file in ${(f)"$(git grep -Il '')"}; do
+            n=0
+            while IFS= read -r line || [[ -n "$line" ]]; do
+              (( ++n ))
+              [[ "$line" == *${~hidden}* ]] && fail 'Hidden or bidirectional Unicode' "$file" $n
+              [[ "$file" == *.md && "$line" == *'<!--'* ]] && fail 'HTML comment in Markdown is invisible when rendered but read by agents' "$file" $n
+              [[ "$line" == *[[:space:]] ]] && fail 'Trailing whitespace' "$file" $n
+            done < "$file"
+          done
+
+          # Captures, reports and local agent settings never enter version control.
+          for file in ${(f)"$(git ls-files)"}; do
+            case "$file" in
+              (logs/*|reports/*|*.zip|*.tar.gz|*.logarchive|*.logarchive/*|sysdiagnose_*|*/sysdiagnose_*|*_response_*.json|*mongoose-gbu-*.md|*mongoose-baseline.md|*'Terminal Saved Output'*)
+                fail 'Capture or report is tracked; remove it with git rm --cached and purge it from history' "$file" ;;
+              (.claude/settings.local.json|*/.claude/settings.local.json)
+                fail 'Local agent settings are tracked' "$file" ;;
+            esac
+          done
+          for probe in logs/probe.log reports/probe.md probe.zip probe.tar.gz probe.logarchive sysdiagnose_probe .claude/settings.local.json; do
+            git check-ignore -q --no-index -- "$probe" || fail "\`.gitignore\` no longer excludes $probe" .gitignore
+          done
+
+          # SKILL.md frontmatter: only name and description; the description is at
+          # most 1,024 characters and has no angle brackets.
+          lines=("${(@f)$(<"$skill")}")
+          if [[ "${lines[1]}" != '---' ]]; then
+            fail 'SKILL.md does not start with YAML frontmatter' "$skill" 1
+          else
+            close=${lines[(ib:2:)---]}
+            keys=() key='' name='' desc=''
+            for (( i = 2; i < close; i++ )); do
+              if [[ "${lines[i]}" =~ '^([A-Za-z0-9_-]+):[[:space:]]*(.*)$' ]]; then
+                key=$match[1]
+                keys+=("$key")
+                case "$key" in
+                  (name) name=$match[2] ;;
+                  (description) desc=$match[2]; [[ "$desc" == [\>\|]* ]] && desc='' ;;
+                esac
+              elif [[ "$key" == description && "${lines[i]}" =~ '^[[:space:]]+(.*)$' ]]; then
+                desc+=" $match[1]"
+              fi
+            done
+            desc=${desc# }
+            [[ "$desc" == \"*\" || "$desc" == \'*\' ]] && desc=${${desc#?}%?}
+            [[ "${(j:,:)${(@o)keys}}" == 'description,name' ]] || fail "SKILL.md frontmatter keys must be exactly name and description (found: ${(j:, :)keys})" "$skill" 1
+            [[ "$name" == "${skill:h:t}" && "$name" =~ '^[a-z0-9-]{1,64}$' ]] || fail "SKILL.md name '$name' must be hyphen-case and match its directory" "$skill" 2
+            (( ${#desc} <= 1024 )) || fail "SKILL.md description is ${#desc} characters (limit 1024)" "$skill"
+            [[ "$desc" != *[\<\>]* ]] || fail 'SKILL.md description contains angle brackets' "$skill"
+          fi
+
+          # Every references/ link in SKILL.md resolves, and every reference is linked.
+          linked=(${(f)"$(grep -oE '\(references/[^)#]+' "$skill" | cut -c2- | sort -u)"})
+          for ref in $linked; do
+            [[ -f "${skill:h}/$ref" ]] || fail "SKILL.md links a missing file: $ref" "$skill"
+          done
+          for ref in ${(f)"$(git ls-files "${skill:h}/references")"}; do
+            (( ${linked[(Ie)${ref#${skill:h}/}]} )) || fail 'Reference is not linked from SKILL.md' "$ref"
+          done
+
+          # Budgets from references/binge-and-purge.md: SKILL.md blocks, references warn.
+          skill_lines=$(wc -l < "$skill") skill_bytes=$(wc -c < "$skill")
+          (( skill_lines <= 50 && skill_bytes <= 6000 )) || fail "SKILL.md is over budget: $(( skill_lines )) lines, $(( skill_bytes )) bytes (limit 50 lines, 6000 bytes)" "$skill"
+          for ref in ${(f)"$(git ls-files "${skill:h}/references/*.md")"}; do
+            ref_lines=$(wc -l < "$ref") ref_bytes=$(wc -c < "$ref")
+            (( ref_lines <= 200 && ref_bytes <= 12000 )) || warn "Reference is over the binge-and-purge budget: $(( ref_lines )) lines, $(( ref_bytes )) bytes (limit 200 lines, 12000 bytes)" "$ref"
+          done
+
+          {
+            print -r -- '### Skill Integrity'
+            print
+            print -r -- 'Coverage: hidden or bidirectional Unicode and trailing whitespace in tracked text files, HTML comments in tracked Markdown, tracked captures, reports or local agent settings, the `.gitignore` rules for them, `SKILL.md` frontmatter, `references/` links in both directions, and the binge-and-purge budgets.'
+            print
+            if (( failures )); then
+              print -r -- "❌ $failures failure(s), $warnings warning(s). See the annotations."
+            else
+              print -r -- "✅ No failures; $warnings warning(s)."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+
+          (( failures == 0 ))
+
+  identifier_scan:
+    name: Identifier Scan (Informational)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Zsh
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+
+      - name: List Identifier Pattern Hits For Review
+        shell: zsh {0}
+        run: |
+          emulate -R zsh
+          setopt pipe_fail
+          summary="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+          files=(${(f)"$(git grep -Il '')"})
+          total=0
+
+          {
+            print -r -- '### Identifier Scan (informational)'
+            print
+            print -r -- 'AGENTS.md Validation step 2. These patterns also match placeholders, versions and example values, so review every hit by hand. This job never fails.'
+          } >> "$summary"
+
+          for label pattern in \
+            'IPv4-like addresses' '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' \
+            'Five-digit numbers' '\b[0-9]{5}\b' \
+            'Serial-like strings' '\b[A-Z0-9]{10,12}\b'
+          do
+            # The C locale keeps [A-Z] to uppercase ASCII.
+            hits=$(LC_ALL=C grep -nHE -e "$pattern" -- $files)
+            hit_lines=(${(f)hits})
+            count=${#hit_lines}
+            (( total += count ))
+            {
+              print
+              print -r -- "**$label:** $count hit(s)"
+              if (( count )); then
+                print
+                print -r -- '```text'
+                print -r -- "$hits"
+                print -r -- '```'
+              fi
+            } >> "$summary"
+          done
+
+          print -r -- "Identifier scan: $total hit(s) to review."
