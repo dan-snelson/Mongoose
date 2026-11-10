@@ -18,9 +18,9 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 
 ### Past-Due DDM Declarations
 
-- A declaration can reach a new enrollment already past its `EnforcedInstallDate`. That forces a restart within the first hour.
+- A declaration can reach a new enrollment already past its `EnforcedInstallDate`. That forces a restart within the first hour. A deadline later the same day still forces a day-one install and restart; report it as user impact, measured from first login.
 - Compare `EnforcedInstallDate` with the enrollment time.
-- Also check fallback dates hard-coded in reminder scripts. A stale fallback can disagree with the declaration.
+- Also check fallback dates hard-coded in reminder scripts. A stale fallback can disagree with the declaration. `EnforcedInstallDate` is device-local time with no zone; a fallback written with `Z` is UTC and shifts the deadline by the UTC offset.
 
 ### Time Zones And Anchors
 
@@ -58,6 +58,7 @@ Most fleets do not use these. Detect first; otherwise skip the section.
 
 - **Detect:** an EPM audit log, for example `defendpoint.audit.log`.
 - It may audit only user-context executions, so root-helper activity is absent. Absence there does not show the helper did not run.
+- Right after the client installs, before its policy arrives, it can log that it is disabled because the policy is invalid. Report that only if it persists past the first allow or deny decision.
 - It may record one CommandLine for many rapid children of the same parent (App-Auto-Patch/AAP4-Swift#355). Do not count CommandLine values as distinct executions.
 - On recent macOS, Apple binaries can chain to a "macOS Software Signing" leaf certificate. Publisher rules that exact-match "Software Signing" miss them.
 

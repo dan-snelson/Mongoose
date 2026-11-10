@@ -40,6 +40,7 @@ Keep these distinct in notes, citations and the report:
 - **Boot and shutdown epochs.** system.log lines carrying `BOOT_TIME` and `SHUTDOWN_TIME` include an epoch value. Convert it to UTC and compare it with the local stamp on the same line. The difference is the effective offset at that moment.
 - **Shared events.** An event that appears in more than one source fixes the offset of the offset-less one. Examples: a policy run in `<mdm>.log` and its script's lines in `<rdnn>.log`; a package install in `<mdm>.log` and in `install.log`, which carries an offset.
 - **Setup Assistant.** Setup Assistant starts on Pacific time by default. The offset can change mid-log once the time zone is set by the user, by location services or by a profile. Split the timeline into offset segments and re-anchor each one.
+- **Offset switch.** The last `install.log` line with the old offset and the first with the new one bound the switch to seconds. Offset-less sources show a false jump of the offset difference there: not a gap, a sleep or a slow run. Correct any duration that spans it. A script that logs its own measured wait across the switch confirms the anchor. Values stored as offset-less wall-clock time before the switch, such as extension-attribute dates, keep the old offset.
 - **Early install.log.** BSD-style `install.log` stamps without an offset during erase or early boot are UTC.
 
 ```zsh

@@ -1,5 +1,7 @@
 # Mongoose
-Mongoose delivers a deep, under-the-hood audit of your MDM policies, focusing on how custom script deployments affect your Mac fleet.
+> Mongoose delivers a deep, under-the-hood audit of your MDM policies, focusing on how custom script deployments affect your Mac fleet.
+
+![Mongoose](images/Mongoose_Hero_001.jpeg "Mongoose")
 
 This AI skill analyzes key logs …
 - `/var/log/system.log`
