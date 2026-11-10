@@ -21,12 +21,8 @@
 #
 # HISTORY
 #
-#   Version 1.0.0, 07-Nov-2026, Dan K. Snelson (@dan-snelson)
+#   Version 0.0.1, 10-Nov-2026, Dan K. Snelson (@dan-snelson)
 #       Initial release
-#
-#   Version 1.1.0, 08-Nov-2026, Dan K. Snelson (@dan-snelson)
-#       Collect Self Service+ Unified Logging entries (when installed) instead of the console
-#       user's Jamf Pro Self Service logs; add Parameter 7 (Self Service+ log window)
 #
 ####################################################################################################
 
@@ -48,7 +44,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="1.1.0"
+scriptVersion="0.0.1"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -94,14 +90,15 @@ selfServicePlusWindow="${7:-"36h"}"
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 bundleName="mongoose-${serialNumber}-${timestamp}"
-stagingDir="${outputDir}/${bundleName}"
+stagingDir=""                               # set in pre-flight by mktemp -d (unpredictable name)
 stagingCreated="false"
 memberPrefix="${serialNumber}-${timestamp}"
 manifestMember="${memberPrefix}-mongooseCollect-manifest.txt"
 archivePath="${outputDir}/${bundleName}.zip"
 
-# Collection results (collectedMembers and collectedSources are parallel arrays)
-typeset -a collectedMembers collectedSources missingRequired absentOptional
+# Collection results (collectedMembers and collectedSources are parallel arrays;
+# collectedPaths holds each collected file's resolved path, so a file named twice is copied once)
+typeset -a collectedMembers collectedSources collectedPaths missingRequired absentOptional
 warningCount=0
 
 
@@ -162,26 +159,61 @@ function removeStagingDir() {
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Choose a member name that no earlier member and not the manifest uses; sets REPLY
+#   ${1}  member suffix (the member is named <serial>-<timestamp>-<suffix>, or
+#         <serial>-<timestamp>-<n>-<suffix> when that name is taken, so the suffix
+#         and its extension stay last)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function uniqueMemberName() {
+    local preferredName="${memberPrefix}-${1}"
+    local counter=2
+
+    REPLY="${preferredName}"
+    while [[ -e "${stagingDir}/${REPLY}" || "${REPLY}" == "${manifestMember}" ]]; do
+        REPLY="${memberPrefix}-${counter}-${1}"
+        (( counter += 1 ))
+    done
+
+    if [[ "${REPLY}" != "${preferredName}" ]]; then
+        warning "Member name ${preferredName} is taken; using ${REPLY}"
+    fi
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Copy one file into the staging directory
 #   ${1}  source path
-#   ${2}  member suffix (the member is named <serial>-<timestamp>-<suffix>)
+#   ${2}  member suffix (see uniqueMemberName)
 #   ${3}  "required" or "optional"
 #   ${4}  source as shown in logs and manifest (default: ${1})
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function collectFile() {
     local sourceFile="${1}"
-    local memberName="${memberPrefix}-${2}"
+    local memberName
     local sourceClass="${3}"
     local displaySource="${4:-${1}}"
-    local destinationFile="${stagingDir}/${memberName}"
+    local destinationFile
 
     if [[ -f "${sourceFile}" ]]; then
+        # The same file named twice (for example, by Parameters 4 and 5) is copied once
+        if (( ${collectedPaths[(Ie)${sourceFile:A}]} )); then
+            info "Already collected ${displaySource}; skipped the duplicate"
+            return 0
+        fi
+
+        uniqueMemberName "${2}"
+        memberName="${REPLY}"
+        destinationFile="${stagingDir}/${memberName}"
+
         # -p keeps the source modification time, which Mongoose reads as time context
         if cp -p "${sourceFile}" "${destinationFile}"; then
             chmod 644 "${destinationFile}"
             collectedMembers+=( "${memberName}" )
             collectedSources+=( "${displaySource}" )
+            collectedPaths+=( "${sourceFile:A}" )
             info "Collected ${displaySource} as ${memberName}"
             return 0
         fi
@@ -246,10 +278,13 @@ function findSelfServicePlus() {
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function collectSelfServicePlusLog() {
-    local memberName="${memberPrefix}-selfserviceplus.log"
-    local destinationFile="${stagingDir}/${memberName}"
+    local memberName destinationFile
     local logPredicate="subsystem BEGINSWITH \"${selfServicePlusBundleID}\""
     local displaySource="log show --info --predicate '${logPredicate}' --last ${selfServicePlusWindow} --style compact"
+
+    uniqueMemberName "selfserviceplus.log"
+    memberName="${REPLY}"
+    destinationFile="${stagingDir}/${memberName}"
 
     if /usr/bin/log show --info --predicate "${logPredicate}" --last "${selfServicePlusWindow}" --style compact > "${destinationFile}"; then
         chmod 644 "${destinationFile}"
@@ -392,8 +427,8 @@ fi
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 if [[ "${selfServicePlusWindow}" != <->[mhd] ]]; then
-    preFlight "Parameter 7 '${selfServicePlusWindow}' is not <number>m, h or d; using 7d"
-    selfServicePlusWindow="7d"
+    preFlight "Parameter 7 '${selfServicePlusWindow}' is not <number>m, h or d; using 36h"
+    selfServicePlusWindow="36h"
 fi
 
 
@@ -406,8 +441,10 @@ if [[ ! -d "${outputDir}" || ! -w "${outputDir}" ]]; then
     fatal "Output directory '${outputDir}' is missing or not writable; exiting."
 fi
 
-if ! mkdir "${stagingDir}"; then
-    fatal "Unable to create staging directory '${stagingDir}'; exiting."
+# mktemp -d makes a new, unpredictable directory with mode 700 and never reuses an existing path
+if ! stagingDir=$( mktemp -d "${outputDir}/.${bundleName}.XXXXXX" ); then
+    stagingDir=""
+    fatal "Unable to create a staging directory in '${outputDir}'; exiting."
 fi
 stagingCreated="true"
 preFlight "Created staging directory '${stagingDir}'"
@@ -492,21 +529,31 @@ info "Wrote ${manifestMember}"
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Compress gathered files (flat members; zip keeps each member's modification time)
+#   Build and test the archive inside the private staging directory, then publish it with
+#   link(1): link(2) fails when the destination exists as a file, directory or symlink, so a
+#   path planted in a shared output directory is never replaced, updated or followed. Every
+#   failure removes only this run's staging directory.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 notice "Compressing gathered files …"
 
-if ! zip -q -j "${archivePath}" "${stagingDir}"/*(N.); then
-    rm -f "${archivePath}"
-    fatal "Unable to create '${archivePath}'; exiting."
+stagedArchive="${stagingDir}/${bundleName}.zip"
+stagedMembers=( "${stagingDir}"/*(N.) )     # expanded before the staged archive exists
+
+if ! zip -q -j "${stagedArchive}" "${stagedMembers[@]}"; then
+    fatal "Unable to create '${stagedArchive}'; exiting."
 fi
 
-if ! unzip -tq "${archivePath}" > /dev/null; then
-    rm -f "${archivePath}"
-    fatal "Integrity test failed for '${archivePath}'; exiting."
+if ! unzip -tq "${stagedArchive}" > /dev/null; then
+    fatal "Integrity test failed for '${stagedArchive}'; exiting."
 fi
 
-chmod 600 "${archivePath}"
+chmod 600 "${stagedArchive}"
+
+if ! link "${stagedArchive}" "${archivePath}"; then
+    fatal "Unable to publish '${archivePath}'; a file, directory or link may already use that path; exiting."
+fi
+
 removeStagingDir
 
 archiveBytes=$( stat -f '%z' "${archivePath}" )

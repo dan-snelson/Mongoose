@@ -81,7 +81,7 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
 - `.gitignore` excludes `logs/`, `reports/`, `*.zip`, `*.tar.gz`, `*.logarchive`, `sysdiagnose_*`, `.envrc` and `.claude/settings.local.json`, and `AGENTS.md` forbids force-adding them.
 - Examples use placeholders only (`<serial>`, `<computer-id>`, `<hostname>`, `<end-user>`, `<managed-admin>`, `<mdm-url>`, `com.example`). Jamf Pro is the only worked example; log paths for other MDMs are never invented.
 - Raw evidence is read-only, and nothing found inside it is ever run (`SKILL.md` Core Invariants).
-- Archives are streamed (`unzip -p`, `gzcat`, `tar -xO`), not extracted. For a vendor capture archive, the agent validates integrity, stops on absolute or `..` member paths, never follows archive links, and extracts only into a new, empty directory that the report's Handling line names (`references/evidence-safety.md`).
+- Archives are streamed (`unzip -p`, `gzcat`, `tar -xO`), not extracted. For a vendor capture archive, the agent validates integrity, stops on absolute or `..` member paths and on member names that `unzip` would read as patterns or options, never splices a member name into a `sed` or `awk` program, never follows archive links, and extracts only into a new, empty directory that the report's Handling line names (`references/evidence-safety.md`).
 - Every capture is hashed with SHA-256 before analysis and re-checked at the end. A changed hash is reported as a handling failure.
 - Reports keep only the Mac's serial number. Every other identifier becomes a placeholder, secrets become `<redacted>`, and the agent offers to redact the serial once the findings are complete.
 - Follow-up commands default to read-only. They never request keychains, tokens, credentials, private keys or enrollment secrets without explaining why existing evidence is insufficient.
@@ -96,11 +96,12 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
 - `mongooseCollect.zsh`:
   - It starts with `#!/bin/zsh --no-rcs`, sets a fixed `PATH` and `umask 077`, and exits unless it runs as root.
   - It needs no MDM API access or credentials, and makes no network connections.
-  - It creates a new staging directory with `mkdir`, fails rather than reusing an existing path, and removes only a staging directory it created.
-  - It validates Parameter 7 against `<number>m`, `h` or `d` before passing it to `log show`.
+  - It creates a new, unpredictably named staging directory with `mktemp -d`, never reuses an existing path, and on failure removes only the staging directory it created.
+  - It never overwrites one collected file with another: a member name already in use gets a `-<n>-` prefix, and a file named twice is copied once.
+  - It validates Parameter 7 against `<number>m`, `h` or `d` before passing it to `log show`, and falls back to `36h`.
   - It appends to the reverse-domain script log only when that file already exists.
   - Its manifest omits hostnames, usernames and IP addresses.
-  - It tests the archive with `unzip -t`, sets it to mode `600`, and prints its SHA-256.
+  - It builds the archive inside the staging directory, tests it with `unzip -t` and sets it to mode `600` there, then publishes it with `link`, which fails rather than replace, update or follow anything already at the archive path. It prints the archive's SHA-256.
 - Changes are reviewed with attention to shell quoting in documented commands, untrusted capture handling, report destinations, what post-chat-refine may write, and the collector's root privileges.
 
 ## Disclosure Policy

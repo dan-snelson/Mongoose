@@ -10,7 +10,7 @@ A ZIP or directory of copied `/var/log` files, made by a log-collection policy o
 - Treat the collection timestamp as collection time, not incident time.
 - Confirm what each member is from its first and last lines. Renamed and truncated files are common.
 - Collection scripts can copy a log while it is still being written and can skip missing rotated logs. See [Interpretation Rules](interpretation-rules.md).
-- A collection manifest member, for example `*-mongooseCollect-manifest.txt`, may state collection time with UTC offset, time zone, boot time, macOS build, serial number, and each member's size, source modification time and SHA-256, plus logs missing or not collected. Use it as a collection-time anchor and an inventory cross-check. Cite it like any member. Its time is collection time, not incident time.
+- A collection manifest member, for example `*-mongooseCollect-manifest.txt`, may state collection time with UTC offset, time zone, boot time, macOS build, serial number, and each member's size, source modification time and SHA-256, plus logs missing or not collected. Use it as a collection-time anchor and an inventory cross-check. A member the manifest does not list, or whose SHA-256 differs from the manifest's, goes under Limitations, and no finding rests on it alone. Cite it like any member. Its time is collection time, not incident time.
 
 ## Device Identity
 

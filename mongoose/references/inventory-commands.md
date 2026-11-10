@@ -21,15 +21,21 @@ bundle='logs/<bundle>.zip'
 unzip -tq "$bundle"
 zipinfo -1 "$bundle"
 
-# Stop if any member path is absolute or contains a parent traversal.
-zipinfo -1 "$bundle" | awk '/^\// || /(^|\/)\.\.($|\/)/ { print "UNSAFE\t" $0 }'
+# Stop if any member path is absolute, contains a parent traversal, starts with a
+# dash, or holds a control character, a pipe or a character unzip reads as a
+# pattern (* ? [ ] \), which would make unzip -p print other members' content.
+zipinfo -1 "$bundle" | awk '/^\// || /(^|\/)\.\.($|\/)/ || /^-/ || /[][*?\\|]/ || /[[:cntrl:]]/ { print "UNSAFE\t" $0 }'
 
-# Line count, first line and last line per member, streamed.
+# First line, last line and line count per member, in one streamed pass.
+# unzip -p removes only the ZIP layer; decompress rotated members before counting.
 zipinfo -1 "$bundle" | while IFS= read -r member; do
   [[ "$member" == */ ]] && continue
-  print -r -- "== $member ($(unzip -p "$bundle" "$member" | wc -l | tr -d ' ') lines)"
-  unzip -p "$bundle" "$member" | head -n 1
-  unzip -p "$bundle" "$member" | tail -n 1
+  print -r -- "== $member"
+  case "$member" in
+    *.gz)  unzip -p "$bundle" "$member" | gzcat ;;
+    *.bz2) unzip -p "$bundle" "$member" | bzcat ;;
+    *)     unzip -p "$bundle" "$member" ;;
+  esac | awk 'NR == 1 { print } { last = $0 } END { if (NR > 1) print last; print NR " lines" }'
 done
 
 # Search one member with line numbers; cite as member:Lnn.
@@ -39,9 +45,11 @@ unzip -p "$bundle" '<prefix>-system.log' | rg -n -i 'error|fail|denied|killed'
 unzip -p "$bundle" '<prefix>-system.log.0.gz' | gzcat | rg -n 'BOOT_TIME|SHUTDOWN_TIME'
 
 # Serial-number candidates, first five per member; cite as member:Lnn.
+# The member name is untrusted data: print it, never splice it into a sed or awk program.
 zipinfo -1 "$bundle" | while IFS= read -r member; do
-  [[ "$member" == */ || "$member" == *.gz ]] && continue
-  unzip -p "$bundle" "$member" | rg -n -i -e 'serial' -e 'S/N' | head -n 5 | sed "s|^|$member:|"
+  [[ "$member" == */ || "$member" == *.(gz|bz2) ]] && continue
+  unzip -p "$bundle" "$member" | rg -n -i -m 5 -e 'serial' -e 'S/N' |
+    while IFS= read -r hit; do print -r -- "$member:$hit"; done
 done
 ```
 
@@ -53,7 +61,15 @@ capture_dir='logs/<bundle-directory>'
 # Files, sizes and formats.
 find "$capture_dir" -maxdepth 2 -type f -exec stat -f '%z bytes\t%N' {} \;
 find "$capture_dir" -maxdepth 2 -type f -exec file {} \;
-wc -l "$capture_dir"/*(.N)
+
+# Line counts; decompress rotated logs first, or wc counts compressed bytes.
+for f in "$capture_dir"/*(.N); do
+  case "$f" in
+    *.gz)  print -r -- "$(gzcat "$f" | wc -l | tr -d ' ') $f" ;;
+    *.bz2) print -r -- "$(bzcat "$f" | wc -l | tr -d ' ') $f" ;;
+    *)     print -r -- "$(wc -l < "$f" | tr -d ' ') $f" ;;
+  esac
+done
 
 # Coverage window and truncated tails: first and last line per log.
 for f in "$capture_dir"/*.log(.N); do

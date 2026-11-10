@@ -102,7 +102,7 @@ It copies `system.log`, the MDM agent log and your reverse-domain script log, wi
 sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
 
 > **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
 
