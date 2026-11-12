@@ -70,9 +70,10 @@ scripts/
 
 ## Install
 
-Mongoose follows the open Agent Skills format; the `mongoose/` directory works with Claude Code and Codex unchanged. A symlink keeps the installed skill in step with this checkout.
+Mongoose follows the open Agent Skills format; the `mongoose/` directory works with Claude Code and Codex unchanged. Install only that directory: it holds `SKILL.md`, `references/` and `agents/`, and needs no `scripts/` or `assets/` folder. A symlink keeps the installed skill in step with this checkout.
 
 ```zsh
+git clone https://github.com/dan-snelson/Mongoose.git /path/to/Mongoose
 cd /path/to/Mongoose
 
 # Claude Code
@@ -83,6 +84,12 @@ ln -s "$PWD/mongoose" ~/.claude/skills/mongoose
 mkdir -p ~/.agents/skills
 ln -s "$PWD/mongoose" ~/.agents/skills/mongoose
 ```
+
+A copied `mongoose/` directory also works, but each report's provenance then reads `mongoose @ copied install` instead of a commit.
+
+[`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) is not part of the skill, and the skill never runs it. Don't copy it into your skills directory; run it on each Mac you audit, as described in [Collect](#collect).
+
+Run your agent from this checkout. Mongoose writes reports to `reports/` in the working directory, [Usage](#usage) puts captures in `logs/`, and this repo's `.gitignore` already excludes both. In any other directory, Mongoose asks before writing to a `reports/` that git does not ignore.
 
 ## Collect
 
