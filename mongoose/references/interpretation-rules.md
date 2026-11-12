@@ -59,6 +59,7 @@ Most fleets do not use these. Detect first; otherwise skip the section.
 - **Detect:** an EPM audit log, for example `defendpoint.audit.log`.
 - It may audit only user-context executions, so root-helper activity is absent. Absence there does not show the helper did not run.
 - Right after the client installs, before its policy arrives, it can log that it is disabled because the policy is invalid. Report that only if it persists past the first allow or deny decision.
+- Count records by their header lines, then break them down by type. Decision verbs are not the only record type; authorization-request displays and status records also appear, and counting one verb undercounts.
 - It may record one CommandLine for many rapid children of the same parent (App-Auto-Patch/AAP4-Swift#355). Do not count CommandLine values as distinct executions.
 - On recent macOS, Apple binaries can chain to a "macOS Software Signing" leaf certificate. Publisher rules that exact-match "Software Signing" miss them.
 

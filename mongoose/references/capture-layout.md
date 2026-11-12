@@ -27,13 +27,13 @@ Cross-check rules live in [Evidence Safety](evidence-safety.md). Never infer a s
 ## Primary Sources
 
 - `system.log` and rotated `system.log.<n>.gz`: boot and shutdown markers, launchd, daemons, and scripts that log to syslog.
-- `<mdm>.log`: the MDM agent log. Jamf Pro is the worked example: `jamf.log` records enrollment, policy execution (`Executing Policy <name>`), recurring check-in, inventory (`jamf recon`) and script activity. For other MDMs, ask the operator for the agent log path; do not guess.
+- `<mdm>.log`: the MDM agent log. Jamf Pro is the worked example: `jamf.log` records enrollment, policy execution (`Executing Policy <name>`), recurring check-in, inventory (`jamf recon`) and script activity. It records no script exit codes; take those from the script's own log lines or the Jamf Pro policy log. For other MDMs, ask the operator for the agent log path; do not guess.
 - `<rdnn>.log`: the organization's reverse-domain script log, for example `/var/log/com.example.it.log`. Many scripts may write to it, often in different formats.
 
 ## Optional Sources
 
 - `install.log`: macOS Installer, package and software-update activity.
-- MDM inventory JSON export: server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive. On its own it supports a [Preliminary Audit](preliminary-audit.md).
+- MDM inventory JSON export: server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive. On its own it supports a [Preliminary Audit](preliminary-audit.md). In a Jamf Pro Computer Record, an `attachments[].sizeBytes` equal to the bundle's byte size confirms that the log-capture upload reached the MDM.
 - Apple sysdiagnose: see [Sysdiagnose Capture Layout](sysdiagnose/capture-layout.md).
 - `Terminal Saved Output*.txt`: follow-up commands run on the impacted Mac, with their output. Later transcripts may refine or replace earlier hypotheses. In Jamf Pro, `jamf recon -verbose` output ends with `<computer_id>`; use it to confirm that a transcript and a bundle refer to the same record, and treat the value as sensitive.
 - A prior Mongoose report: input to a re-audit. See [Re-Audit Delta](re-audit-delta.md).

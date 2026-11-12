@@ -39,7 +39,7 @@ Keep these distinct in notes, citations and the report:
 
 - **Boot and shutdown epochs.** system.log lines carrying `BOOT_TIME` and `SHUTDOWN_TIME` include an epoch value. Convert it to UTC and compare it with the local stamp on the same line. The difference is the effective offset at that moment.
 - **Shared events.** An event that appears in more than one source fixes the offset of the offset-less one. Examples: a policy run in `<mdm>.log` and its script's lines in `<rdnn>.log`; a package install in `<mdm>.log` and in `install.log`, which carries an offset.
-- **Setup Assistant.** Setup Assistant starts on Pacific time by default. The offset can change mid-log once the time zone is set by the user, by location services or by a profile. Split the timeline into offset segments and re-anchor each one.
+- **Setup Assistant.** Setup Assistant starts on Pacific time by default. The offset can change mid-log once the time zone is set by the user, by location services, by a profile or by an enrollment package or script. A switch that falls between one package's preinstall and postinstall output in `install.log` makes that package a lead, not a confirmed setter; confirm it in unified logs. Split the timeline into offset segments and re-anchor each one.
 - **Offset switch.** The last `install.log` line with the old offset and the first with the new one bound the switch to seconds. Offset-less sources show a false jump of the offset difference there: not a gap, a sleep or a slow run. Correct any duration that spans it. A script that logs its own measured wait across the switch confirms the anchor. Values stored as offset-less wall-clock time before the switch, such as extension-attribute dates, keep the old offset.
 - **Early install.log.** BSD-style `install.log` stamps without an offset during erase or early boot are UTC.
 
@@ -56,3 +56,4 @@ TZ='<Area/City>' date -r "$epoch" '+%Y-%m-%d %H:%M:%S %z'
 - Keep each row's original timestamp and `file:Lnn` next to the normalized time.
 - Mark a normalized time as inferred when it depends on an anchor, and name the anchor.
 - Measure every window from first boot (the first `BOOT_TIME` in the evidence), so windows from different captures compare.
+- A new Mac's logs can open with a factory or pre-delivery boot days before enrollment, followed by a silent gap. State that boot, then measure the enrollment window from the enrollment-day boot as well.
