@@ -6,7 +6,7 @@
 This AI skill analyzes key logs …
 - `/var/log/system.log`
 - `/var/log/<mdm>.log` (i.e., Jamf Pro's `/var/log/jamf.log`)
-- `/var/log/<rdnn>.log` (i.e., your organization's reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`)
+- `/var/log/<rdnn>.log` (i.e., your organization's reverse-domain script log, for example `/var/log/com.example.it.log`)
 
 … then produces a clear Markdown report structured as “The Good, The Bad, and The Ugly.”
 
@@ -16,7 +16,7 @@ This AI skill analyzes key logs …
 |---|---|---|
 | `/var/log/system.log` and rotated `.gz` files | Yes | Boots, shutdowns, launchd and daemon activity |
 | `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
-| `/var/log/<rdnn>.log` | Yes | Your organization's reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` |
+| `/var/log/<rdnn>.log` | Yes | Your organization's reverse-domain script log, for example `/var/log/com.example.it.log` |
 | `/var/log/install.log` | Optional | Package and software-update activity |
 | MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
@@ -38,6 +38,8 @@ One Markdown report, `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, named from t
 Every `file:Lnn` citation is re-read from its source before the reply. A report never overwrites another; a rerun gets a `-2`, `-3` suffix.
 
 A re-audit adds a delta table (Fixed, Improved, Unchanged, Worse, Not observable) and re-test checklist results.
+
+For a fictional sample re-audit that shows every section, see [examples/mongoose-sample-report.md](examples/mongoose-sample-report.md).
 
 You can set one full report as your environment baseline. Every later audit, of any Mac, then adds a delta vs. baseline and tags each finding In baseline or Off-baseline. The baseline never hides or downgrades a finding. Mongoose stores only a pointer and the report's SHA-256 in `reports/mongoose-baseline.md`, and asks before using a report that has changed since.
 
@@ -66,6 +68,8 @@ mongoose/
     └── sysdiagnose/                  # Layout, commands, workflow, ADE handoffs, network filters
 scripts/
 └── mongooseCollect.zsh               # Root collector that builds the client-log bundle
+examples/
+└── mongoose-sample-report.md         # Fictional sample report (not part of the skill)
 ```
 
 ## Install
@@ -99,14 +103,14 @@ It copies `system.log`, the MDM agent log and your reverse-domain script log, wi
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When unset, the bundle lacks it and the script warns |
+| 4 | Reverse-domain script log, for example `/var/log/com.example.it.log` | None. When unset, the bundle lacks it and the script warns |
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
 | 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
-sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log
 ```
 
 The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
@@ -124,7 +128,7 @@ Mongoose activates when a request matches its description. You can also call it 
 
 Put captures in the git-ignored `logs/` directory, then ask:
 
-> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
+> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `com.example.it.log`.
 
 With only a Computer Record JSON:
 
