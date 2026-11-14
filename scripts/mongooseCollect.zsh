@@ -73,7 +73,8 @@
 #   Version 0.0.5, 14-Nov-2026, Dan K. Snelson (@dan-snelson)
 #       The handoff is one paste-ready line, ( umask 077; sudo cat <archive> > ~/Downloads/<name> ):
 #       root only reads the archive, and the redirection runs as the pasting user, so a link
-#       planted at the destination gains nothing and the copy is user-owned with mode 600
+#       planted at the destination gains nothing and the copy is user-owned with mode 600; the
+#       line runs sudo, so the pasting user must be an administrator
 #       Parameter 8 discovery skips file names that hold control characters (tabs, newlines),
 #       which would break the manifest's tab-separated rows and split log lines; they are
 #       counted, never echoed, and noted in the manifest
@@ -1093,8 +1094,9 @@ notice "Complete with ${warningCount} warning(s); transfer '${archivePath}' for 
 # runs as the pasting user under umask 077, so root never writes into the user's directory, a
 # link planted at the destination gains nothing, and the copy is user-owned without chown or
 # chmod. ~ is printed literally and expands in the pasting user's shell, so no username is
-# resolved, printed or logged; the script runs none of it.
-notice "To attach the archive in a chat app, paste this line as the logged-in user (not root):"
+# resolved, printed or logged; the script runs none of it. The line runs sudo, so the pasting
+# user must be an administrator.
+notice "To attach the archive in a chat app, paste this line as the logged-in user (not root), who must be an administrator, since it runs sudo:"
 print -r -- "( umask 077; sudo cat ${(q-)archivePath} > ~/Downloads/${(q-)archivePath:t} )"
 notice "The copy holds the same sensitive data as the archive; ~/Downloads is not synced by iCloud Drive's Desktop & Documents Folders, so do not use ~/Desktop or ~/Documents; delete both copies once attached"
 
