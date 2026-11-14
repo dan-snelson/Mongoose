@@ -104,7 +104,6 @@ Run on the saved report, before the redaction prompt; citations added while draf
 ```zsh
 rg -o --no-filename -- '`[^`]+:L[0-9]+(-L?[0-9]+)?`' 'reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md' | sort -u
 unzip -p 'logs/<bundle>.zip' '<prefix>-jamf.log' | sed -n '<n>p'
-# A Unified Logging MDM agent log (manifest source is a log show command): '<prefix>-mdm-agent.log'
 ```
 
 ## Redaction Prompt
