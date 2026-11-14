@@ -13,11 +13,12 @@
 #   collection manifest (collection time with offset, macOS build, boot time, serial number,
 #   and per-member size, modification time, SHA-256 and source path).
 #
-#   The MDM agent log (Parameter 5) is a file path, or a Unified Logging predicate exported with
-#   log show. Left empty, the MDM vendor is detected from the enrollment profile: Jamf Pro and
-#   undetected Macs use /var/log/jamf.log; a recognized vendor whose agent log source is not
-#   known is recorded as missing (set Parameter 5). The enrollment server address is never
-#   printed, logged or written to the manifest.
+#   The MDM agent log (Parameter 5) is an absolute file path, or a Unified Logging predicate
+#   exported with log show; a relative path is rejected. Left empty, the MDM vendor is detected
+#   from the enrollment profile: Jamf Pro and undetected Macs use /var/log/jamf.log; a recognized
+#   vendor whose agent log source is not known uses /var/log/jamf.log when it exists (with a
+#   warning and a manifest note) and is otherwise recorded as missing (set Parameter 5). The
+#   enrollment server address is never printed, logged or written to the manifest.
 #
 #   Transferring the .zip is out of scope; the archive stays in the output directory.
 #   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
@@ -52,6 +53,12 @@
 #       vendor with no known agent log source is recorded as missing; the enrollment server
 #       address is never printed, logged or written to the manifest
 #       Parameter 7 renamed "Unified Logging window"; it applies to both Unified Logging exports
+#       Detection hardened: Jamf School is matched before Jamf Pro and Fleet only on "fleetdm";
+#       a recognized vendor with no known agent log source falls back to /var/log/jamf.log when
+#       it exists, with a warning and a manifest note
+#       Parameter 5 is trimmed of leading and trailing whitespace; a relative value that looks
+#       like a path (starts with ~ or ., or ends in .log or .log.<n>, with no predicate operator)
+#       is rejected, since file paths must be absolute
 #
 ####################################################################################################
 
@@ -103,14 +110,16 @@ selfServicePlusVersion=""
 scriptLog="${4:-""}"
 
 # Parameter 5: MDM agent log: an absolute file path (starts with /) or a Unified Logging predicate;
-# empty: detected from the enrollment profile (see detectMdmVendor and the MDM agent log pre-flight)
+# empty: detected from the enrollment profile (see detectMdmVendor and the MDM agent log pre-flight);
+# trimmed of leading and trailing whitespace in pre-flight
 mdmLogParam="${5:-""}"
-mdmLogDefault="/var/log/jamf.log"           # Jamf Pro, and the fallback when no vendor is detected
+mdmLogDefault="/var/log/jamf.log"           # Jamf Pro; fallback when no vendor is detected, or when it exists for one with no known source
 mdmLogPredicateMaxLength=1024               # longest Parameter 5 predicate accepted
 mdmVendor=""                                # set by detectMdmVendor (vendor name only)
 mdmVendorReason=""                          # set by detectMdmVendor when no vendor is recognized
 mdmVendorStatus="not checked (Parameter 5 set)"
 mdmLogSource=""                             # set in pre-flight: file, predicate, unknown or rejected
+mdmLogFallback=""                           # "true" when mdmLogDefault is used for a vendor with no known source
 mdmLogFile=""
 mdmLogPredicate=""
 mdmLogRejectReason=""
@@ -422,6 +431,9 @@ function findSelfServicePlus() {
 #   (its PayloadContent sorts before its PayloadType), reduce it to a lowercase host and match
 #   the host on vendor substrings. The ServerURL and host are <mdm-url>: they stay in local
 #   variables and are never printed, logged or written to the manifest.
+#   Substrings are deliberately specific (fleetdm, not fleet; jamfschool before jamf), and a
+#   mismatch is softened in pre-flight: a vendor with no known agent log source still gets
+#   mdmLogDefault when that file exists.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function detectMdmVendor() {
@@ -458,7 +470,8 @@ function detectMdmVendor() {
     case "${serverHost}" in
         *addigy* )          mdmVendor="Addigy" ;;
         *filewave* )        mdmVendor="FileWave" ;;
-        *fleet* )           mdmVendor="Fleet" ;;
+        *fleetdm* )         mdmVendor="Fleet" ;;
+        *jamfschool* )      mdmVendor="Jamf School" ;;      # before *jamf*: no jamf binary, so no jamf.log
         *jamf* | *jss* )    mdmVendor="Jamf Pro" ;;
         *jumpcloud* )       mdmVendor="JumpCloud" ;;
         *kandji* )          mdmVendor="Kandji" ;;
@@ -571,13 +584,19 @@ function writeManifest() {
             print -r -- "Script-log files discovered: ${scriptLogDirFiles} (${scriptLogDirLogs} *.log plus rotated)"
         fi
         if [[ "${mdmLogSource}" == "rejected" ]]; then
-            print -r -- "MDM agent log (Parameter 5): predicate not shown (rejected: ${mdmLogRejectReason})"
+            print -r -- "MDM agent log (Parameter 5): value not shown (rejected: ${mdmLogRejectReason})"
         else
             print -r -- "MDM agent log (Parameter 5): ${mdmLogParam:-not set}"
         fi
         print -r -- "MDM vendor: ${mdmVendorStatus}"
         case "${mdmLogSource}" in
-            file )      print -r -- "MDM agent log source: file ${mdmLogFile}" ;;
+            file )
+                if [[ "${mdmLogFallback}" == "true" ]]; then
+                    print -r -- "MDM agent log source: file ${mdmLogFile} (found on disk; detected vendor ${mdmVendor} has no known agent log source)"
+                else
+                    print -r -- "MDM agent log source: file ${mdmLogFile}"
+                fi
+                ;;
             predicate ) print -r -- "MDM agent log source: Unified Logging predicate" ;;
             unknown )   print -r -- "MDM agent log source: not known (set Parameter 5)" ;;
             rejected )  print -r -- "MDM agent log source: none (Parameter 5 rejected)" ;;
@@ -708,11 +727,22 @@ fi
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: MDM agent log (Parameter 5)
+#   Leading and trailing whitespace is trimmed first.
 #   Set: a value starting with / is a file; any other value is a Unified Logging predicate,
-#   rejected when it holds control characters or is longer than mdmLogPredicateMaxLength
-#   (log show itself rejects bad syntax). Empty: detect the MDM vendor (see detectMdmVendor);
-#   Jamf Pro and undetected Macs use mdmLogDefault. The requirement is judged during collection.
+#   rejected when it holds control characters, is longer than mdmLogPredicateMaxLength, or looks
+#   like a relative path: it starts with ~ or ., or ends in .log or .log.<n>, and holds no
+#   predicate operator (==, !=) or keyword (BEGINSWITH, CONTAINS, ENDSWITH, LIKE, MATCHES, IN;
+#   any case, whole words). File paths must be absolute. log show itself rejects bad syntax.
+#   Empty: detect the MDM vendor (see detectMdmVendor); Jamf Pro and undetected Macs use
+#   mdmLogDefault, and a vendor with no known agent log source uses mdmLogDefault when it exists.
+#   A rejected value is never echoed. The requirement is judged during collection.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+while [[ "${mdmLogParam}" == [[:space:]]* ]]; do mdmLogParam="${mdmLogParam#[[:space:]]}"; done
+while [[ "${mdmLogParam}" == *[[:space:]] ]]; do mdmLogParam="${mdmLogParam%[[:space:]]}"; done
+
+# Lowercase words of Parameter 5, space-padded, so keywords match whole words only (not "in" in "index")
+mdmLogParamWords=" ${(L)mdmLogParam//[^[:alnum:]]/ } "
 
 if [[ -n "${mdmLogParam}" ]]; then
     if [[ "${mdmLogParam}" == /* ]]; then
@@ -725,6 +755,11 @@ if [[ -n "${mdmLogParam}" ]]; then
     elif (( ${#mdmLogParam} > mdmLogPredicateMaxLength )); then
         mdmLogSource="rejected"
         mdmLogRejectReason="predicate is longer than ${mdmLogPredicateMaxLength} characters"
+    elif [[ "${mdmLogParam}" == [~.]* || "${(L)mdmLogParam}" == *.log || "${(L)mdmLogParam}" == *.log.<-> ]] \
+        && [[ "${mdmLogParam}" != *(==|!=)* ]] \
+        && [[ "${mdmLogParamWords}" != *" "(beginswith|contains|endswith|like|matches|in)" "* ]]; then
+        mdmLogSource="rejected"
+        mdmLogRejectReason="value looks like a relative file path; file paths must be absolute (start with /)"
     else
         mdmLogSource="predicate"
         mdmLogPredicate="${mdmLogParam}"
@@ -756,6 +791,13 @@ else
         elif [[ -n "${mdmLogPredicate}" ]]; then
             mdmLogSource="predicate"
             preFlight "Exporting the ${mdmVendor} agent log with log show (last ${unifiedLogWindow})"
+        elif [[ -f "${mdmLogDefault}" ]]; then
+            # Evidence on disk, not a guessed path: a self-hosted Jamf Pro server whose host
+            # matches another vendor's substring must not lose its agent log
+            mdmLogSource="file"
+            mdmLogFile="${mdmLogDefault}"
+            mdmLogFallback="true"
+            warning "${mdmVendor} detected; its agent log source is not known, but '${mdmLogFile}' exists; collecting it (set Parameter 5 to override)"
         else
             mdmLogSource="unknown"
             warning "${mdmVendor} detected; its agent log source is not known; set Parameter 5 to a file path or Unified Logging predicate"
