@@ -6,7 +6,7 @@
 This AI skill analyzes key logs …
 - `/var/log/system.log`
 - `/var/log/<mdm>.log` (i.e., Jamf Pro's `/var/log/jamf.log`)
-- Your organization's script logs: either `/var/log/<rdnn>.log` (i.e., a reverse-domain script log, for example `/var/log/com.example.it.log`) or a directory with one log per script (for example `/var/log/managed/`)
+- Your organization's script logs: either `/var/log/<rdnn>.log` (i.e., a reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`) or a directory with one log per script (for example `/var/log/managed/`)
 
 … then produces a clear Markdown report structured as “The Good, The Bad, and The Ugly.”
 
@@ -18,7 +18,7 @@ Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built 
 |---|---|---|
 | `/var/log/system.log` and rotated `.gz` files | Yes | Boots, shutdowns, launchd and daemon activity |
 | `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
-| `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/com.example.it.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
+| `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
 | `/var/log/install.log` | Optional | Package and software-update activity |
 | MDM inventory JSON or CSV export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
@@ -113,7 +113,7 @@ It copies `system.log`, the MDM agent log and your script logs (a reverse-domain
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/com.example.it.log` | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
+| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
 | 5 | MDM agent log: an absolute file path only (starts with `/`), or a Unified Logging predicate, such as `process == "<mdm-agent-process>"`, at most 1,024 characters with no control characters. Leading and trailing whitespace is trimmed. A relative path (starts with `~` or `.`, or ends in `.log` or `.log.<n>`, with no `==`, `!=`, `BEGINSWITH`, `CONTAINS`, `ENDSWITH`, `LIKE`, `MATCHES` or `IN`) is rejected | Empty: detected from the enrollment profile; Jamf Pro and undetected Macs use `/var/log/jamf.log`, as does a recognized MDM with no known agent log source when that file exists |
 | 6 | Output directory | `/var/tmp` |
 | 7 | Unified Logging window for Self Service+ and a Parameter 5 predicate, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
@@ -121,13 +121,13 @@ It copies `system.log`, the MDM agent log and your script logs (a reverse-domain
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
-sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 
 # One log per script under a directory (Parameter 8).
 sudo zsh scripts/mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
 
 # An MDM agent that logs only to Unified Logging (Parameter 5 as a predicate).
-sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log 'process == "<mdm-agent-process>"'
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log 'process == "<mdm-agent-process>"'
 ```
 
 The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. A Parameter 5 predicate export is named `<serial>-<YYYY-MM-DD-HHMMSS>-mdm-agent.log`, and its manifest `source` is the `log show` command. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
@@ -158,7 +158,7 @@ In the Claude desktop app (chat): install the skill ([Install](#install)), run t
 
 Put captures in the git-ignored `logs/` directory, then ask:
 
-> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `com.example.it.log`.
+> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
 
 When each script writes its own log:
 

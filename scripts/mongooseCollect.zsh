@@ -25,11 +25,11 @@
 #   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
 #
 #   Run as root, for example from a Jamf Pro policy, or locally:
-#       sudo zsh mongooseCollect.zsh / '' '' /var/log/com.example.it.log
+#       sudo zsh mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
 #   or, with one log per script under a directory (Parameter 8):
 #       sudo zsh mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
 #   or, with an MDM agent that logs only to Unified Logging (Parameter 5 as a predicate):
-#       sudo zsh mongooseCollect.zsh / '' '' /var/log/com.example.it.log 'process == "<mdm-agent-process>"'
+#       sudo zsh mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log 'process == "<mdm-agent-process>"'
 #
 ####################################################################################################
 #
@@ -116,7 +116,7 @@ selfServicePlusVersion=""
 # Script Parameters
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-# Parameter 4: Organization's reverse-domain script log (for example, /var/log/com.example.it.log)
+# Parameter 4: Organization's reverse-domain script log (for example, /var/log/org.churchofjesuschrist.log)
 scriptLog="${4:-""}"
 
 # Parameter 5: MDM agent log: an absolute file path (starts with /) or a Unified Logging predicate;

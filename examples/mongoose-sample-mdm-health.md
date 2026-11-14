@@ -71,7 +71,7 @@ Pair: period 1 to period 2. Shared endpoints: 2 (endpoint-1, endpoint-3). No sha
 
 - **Outside the shared sample:** endpoint-2 (period 1 only, preliminary report `mongoose-gbu-preliminary-2025-03-04-150000.md`) and endpoint-4 (period 2 only, `mongoose-gbu-2025-03-13-140000.md`). A change in which Macs were sampled is not a change in the fleet.
 - **Not observable, endpoint-2, period 1:** script exit and failure, duration and concurrency, redundant runs and triggers, and secrets exposure. The report marks exit codes, duration, concurrency, triggers and policy parameters Not observable without `<mdm>.log` (`mongoose-gbu-preliminary-2025-03-04-150000.md:L41`). Logging hygiene: no script log read (Sections table, L14-L17).
-- **Not observable, endpoint-4, period 2:** logging hygiene and noise. The script log `com.example.it.log` was missing, not collected (`mongoose-gbu-2025-03-13-140000.md:L20`).
+- **Not observable, endpoint-4, period 2:** logging hygiene and noise. The script log `org.churchofjesuschrist.log` was missing, not collected (`mongoose-gbu-2025-03-13-140000.md:L20`).
 - **Not observable, all period 2 endpoints:** security posture and encryption, and inventory and extension attributes. No period 2 report lists an inventory export in its Members table.
 - **Versions:** every report states skill version `<short-sha>`. No report states an MDM agent version.
 - **Earlier findings Trend does not carry:** endpoint-2, period 1 only: G1, FileVault enabled (`mongoose-gbu-preliminary-2025-03-04-150000.md:L25`), and B1, two extension attributes return error text (`mongoose-gbu-preliminary-2025-03-04-150000.md:L31`).

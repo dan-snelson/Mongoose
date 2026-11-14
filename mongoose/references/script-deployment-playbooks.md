@@ -52,7 +52,7 @@ Find each script's lines first, and record which layout you used ([Capture Layou
 Jamf Pro passes script parameters 4 through 11 as positional arguments. They can appear in process listings, EPM audit command lines and any log the script writes. Report that a secret was exposed and where; never print the value.
 
 ```zsh
-log='logs/<bundle-directory>/<prefix>-com.example.it.log'
+log='logs/<bundle-directory>/<prefix>-org.churchofjesuschrist.log'
 mdm_log='logs/<bundle-directory>/<prefix>-jamf.log'
 # A Unified Logging MDM agent log (manifest source is a log show command):
 # mdm_log='logs/<bundle-directory>/<prefix>-mdm-agent.log'
@@ -67,6 +67,7 @@ awk '
 ' "$log"
 
 # Per-script directory (optional): the same line-class census once per file.
+# A mongooseCollect bundle flattens the directory; find its members by the manifest's source column.
 for f in 'logs/<bundle-directory>/<script-log-dir>'/**/*.log(.N); do
   print -rn -- "$f: "
   awk '

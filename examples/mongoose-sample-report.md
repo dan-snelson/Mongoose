@@ -22,7 +22,7 @@
 
 The prior report supplied hypotheses and a re-test checklist. Its findings were re-measured against the prior capture before comparison. No environment baseline is used in this constructed scenario.
 
-Citations use short member names. `system.log`, `jamf.log`, `<rdnn>.log` (the custom script log, `com.example.it.log`), `install.log` and `manifest` stand for `<serial>-2025-02-07-074500-<name>` inside the new bundle. `prior:` selects the earlier bundle. `verification.txt` means the supplied Terminal Saved Output transcript. Each citation below is illustrative.
+Citations use short member names. `system.log`, `jamf.log`, `<rdnn>.log` (the custom script log, `org.churchofjesuschrist.log`), `install.log` and `manifest` stand for `<serial>-2025-02-07-074500-<name>` inside the new bundle. `prior:` selects the earlier bundle. `verification.txt` means the supplied Terminal Saved Output transcript. Each citation below is illustrative.
 
 | Member | Lines | Notes |
 |---|---|---|
