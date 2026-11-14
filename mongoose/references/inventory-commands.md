@@ -166,8 +166,8 @@ csv='logs/<inventory-export>.csv'
 file --mime-encoding "$csv"  # us-ascii or utf-8 only; otherwise stop and ask. Convert nothing in place.
 # Rows as JSON arrays, header row first, every cell kept as text. In memory; nothing written to disk.
 csvrows() { local n i c=(); n=$(sqlite3 :memory: -cmd '.import --csv /dev/stdin h' "select count(*) from pragma_table_info('h')" < "$1" 2>/dev/null)
-  [[ "$n" == <1-> ]] || return 1; for i in {1..$n}; do c+=("c$i text"); done; sqlite3 -json :memory: "create table t(${(j:,:)c})" '.import --csv /dev/stdin t' 'select * from t' < "$1" | jq -c 'map([.[]])'; }
-csvrows "$csv" | jq -r '.[0] as $h | .[1:] as $r | "data rows\t\($r | length)", (range($h | length) as $i | [$i + 1, $h[$i], ([$r[] | select((.[$i] // "") != "")] | length)] | @tsv)'  # then column number, name, populated rows; none: empty file
+  [[ "$n" == <1-> ]] || { print -u2 "csvrows: no header read"; return 1; }; for i in {1..$n}; do c+=("c$i text"); done; sqlite3 -json :memory: "create table t(${(j:,:)c})" '.import --csv /dev/stdin t' 'select * from t' < "$1" | jq -c 'map([.[]])'; }
+csvrows "$csv" | jq -r '.[0] as $h | .[1:] as $r | "data rows\t\($r | length)", (range($h | length) as $i | [$i + 1, $h[$i], ([$r[] | select((.[$i] // "") != "")] | length)] | @tsv)'  # then column number, name, populated rows; none: empty or unreadable
 csvrows "$csv" | jq --arg c '<column-number>' --arg s '<serial>' 'to_entries[1:][] | select(.value[$c | tonumber - 1] == $s) | .key'  # data-row number
 ```
 
