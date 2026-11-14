@@ -99,6 +99,8 @@ ln -s "$PWD/mongoose" ~/.agents/skills/mongoose
 
 A copied `mongoose/` directory also works, but each report's provenance then reads `mongoose @ copied install` instead of a commit.
 
+**Claude desktop app (chat):** add the `mongoose/` directory as a skill through the app's skills settings, uploading a ZIP of that directory built from this checkout with `zip -r mongoose.zip mongoose`. This is a copied install, so each report's provenance reads `mongoose @ copied install`. The report arrives as a file to download; keep it out of any git repository.
+
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) is not part of the skill, and the skill never runs it. Don't copy it into your skills directory; run it on each Mac you audit, as described in [Collect](#collect).
 
 Run your agent from this checkout. Mongoose writes reports to `reports/` in the working directory, [Usage](#usage) puts captures in `logs/`, and this repo's `.gitignore` already excludes both. In any other directory, Mongoose asks before writing to a `reports/` that git does not ignore.
@@ -130,7 +132,17 @@ sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log 'proces
 
 The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. A Parameter 5 predicate export is named `<serial>-<YYYY-MM-DD-HHMMSS>-mdm-agent.log`, and its manifest `source` is the `log show` command. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
-> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
+On success, the script also prints paste-ready handoff lines with the real archive path. Paste them as the logged-in user, not root, to get a copy you can attach in a chat app:
+
+```zsh
+sudo cp /var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip ~/Downloads/
+sudo chown "$USER" ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip
+chmod 600 ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip
+```
+
+The copy keeps mode `600`, readable only by you. `"$USER"` and `~` expand in your shell, so the script never resolves or logs a username, and it runs none of these lines; they go to stdout only, never to the script log. A Parameter 6 path with spaces is printed shell-quoted. `~/Downloads` is not synced by iCloud Drive's Desktop & Documents Folders, so don't use `~/Desktop` or `~/Documents`.
+
+> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture, and so does the `~/Downloads` copy from the handoff lines. Delete both once the archive is attached or moved.
 
 ## Usage
 
@@ -140,6 +152,9 @@ Mongoose activates when a request matches its description. You can also call it 
 |---|---|
 | Claude Code | `/mongoose` or "Run a Mongoose GBU audit …" |
 | Codex | `$mongoose` or "Run a Mongoose GBU audit …" |
+| Claude desktop app (chat) | Attach the copy, then ask: "Run a Mongoose GBU audit on the attached bundle …" |
+
+In the Claude desktop app (chat): install the skill ([Install](#install)), run the collector on the Mac ([Collect](#collect)), paste the handoff lines it prints, then attach the `~/Downloads` copy.
 
 Put captures in the git-ignored `logs/` directory, then ask:
 

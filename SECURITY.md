@@ -65,7 +65,7 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
 - Treat every capture and report as sensitive. Reports keep the Mac's serial number by default; accept redaction at the prompt before a report leaves the team that manages the Mac. Never attach captures, sysdiagnoses, inventory JSON exports or full reports to public issues.
 - Read each follow-up command before running it on an endpoint. Follow-ups are meant to be read-only; if one changes state or asks for secrets, don't run it, and report it.
 - Review `mongooseCollect.zsh` before deploying it. It runs as root and copies the files that Parameters 4 and 5 name in full, so point them only at log files. If you change Parameter 6, choose an output directory that only root can write.
-- Move the collector's archive off the Mac through a channel approved for sensitive data, then delete it from the output directory.
+- Move the collector's archive off the Mac through a channel approved for sensitive data, then delete it from the output directory, including the `~/Downloads` copy from the handoff lines.
 - If Mongoose reports that the baseline report's SHA-256 no longer matches `reports/mongoose-baseline.md`, find out why before setting the baseline again.
 - Review the diff after accepting **post-chat-refine** and before committing it. Confirm that no serials, computer IDs, hostnames, accounts, URLs, policy or script names, timestamps or hashes were added to the skill files. Then accept its offer to delete the scratch directory, because `fingerprints.txt` holds the run's real identifiers.
 
@@ -106,6 +106,7 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
   - It appends to the reverse-domain script log only when that file already exists and is outside Parameter 8.
   - Its manifest omits hostnames, usernames and IP addresses.
   - It builds the archive inside the staging directory, tests it with `unzip -t` and sets it to mode `600` there, then publishes it with `link`, which fails rather than replace, update or follow anything already at the archive path. It prints the archive's SHA-256.
+  - On success, it prints paste-ready lines that copy the archive to the pasting user's `~/Downloads` with mode `600` (`sudo cp`, `sudo chown "$USER"`, `chmod 600`). It runs none of them, prints them to stdout only, never to the script log, and prints `"$USER"` literally, so no username is resolved or logged.
 - Changes are reviewed with attention to shell quoting in documented commands, untrusted capture handling, report destinations, what post-chat-refine may write, and the collector's root privileges.
 
 ## Disclosure Policy

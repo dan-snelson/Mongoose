@@ -20,7 +20,8 @@
 #   warning and a manifest note) and is otherwise recorded as missing (set Parameter 5). The
 #   enrollment server address is never printed, logged or written to the manifest.
 #
-#   Transferring the .zip is out of scope; the archive stays in the output directory.
+#   The script never moves the .zip; on success it prints paste-ready lines that give the
+#   logged-in user a mode-600 copy in ~/Downloads.
 #   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
 #
 #   Run as root, for example from a Jamf Pro policy, or locally:
@@ -62,6 +63,13 @@
 #       A Unified Logging export's manifest source shell-quotes the predicate, so it pastes back
 #       as a working command even when the predicate holds single quotes
 #
+#   Version 0.0.4, 14-Nov-2026, Dan K. Snelson (@dan-snelson)
+#       On success, prints paste-ready lines (stdout only, never the script log) that copy the
+#       archive to the logged-in user's ~/Downloads with mode 600: sudo cp, sudo chown "$USER"
+#       and chmod 600, with the real archive path shell-quoted; "$USER" and ~ are printed
+#       literally, so no username is resolved or logged, and the script runs none of the lines
+#       (issue #7)
+#
 ####################################################################################################
 
 
@@ -82,7 +90,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="0.0.3"
+scriptVersion="0.0.4"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -997,4 +1005,14 @@ if (( ${#missingRequired} )); then
 fi
 
 notice "Complete with ${warningCount} warning(s); transfer '${archivePath}' for analysis"
+
+# Handoff: paste-ready lines on stdout only (never the script log) that give the logged-in user
+# a mode-600 copy in ~/Downloads. "$USER" and ~ are printed literally and expand in the pasting
+# user's shell, so no username is resolved, printed or logged; the script runs none of them.
+notice "To attach the archive in a chat app, paste these lines as the logged-in user (not root):"
+print -r -- "sudo cp ${(q-)archivePath} ~/Downloads/"
+print -r -- 'sudo chown "$USER" ~/Downloads/'"${(q-)archivePath:t}"
+print -r -- 'chmod 600 ~/Downloads/'"${(q-)archivePath:t}"
+notice "The copy holds the same sensitive data as the archive; ~/Downloads is not synced by iCloud Drive's Desktop & Documents Folders, so do not use ~/Desktop or ~/Documents; delete both copies once attached"
+
 exit 0
