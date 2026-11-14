@@ -22,7 +22,7 @@ Use after inventory and time context. Analysis here is read-only. Follow-up comm
 ## MDM Policy Or Provisioning Failure
 
 1. Locate the policy, trigger, script, package or enrollment event in `<mdm>.log`. Jamf Pro: `Executing Policy <name>` and the trigger that started it, such as recurring check-in.
-2. Correlate with `<rdnn>.log`, optional component logs, `install.log` and sysdiagnose evidence when available.
+2. Correlate with script logs (`<rdnn>.log` or `<script-log-dir>` files), optional component logs, `install.log` and sysdiagnose evidence when available.
 3. Separate MDM orchestration failures from failures inside the called script, installer, application or security product.
 4. Check rotated system logs when the incident predates the current file.
 5. Do not treat recurring historical warnings as causal without temporal and behavioral correlation.
@@ -32,7 +32,7 @@ Use after inventory and time context. Analysis here is read-only. Follow-up comm
 
 These feed the script-deployment lens in [Report: The Good, The Bad, And The Ugly](report-gbu.md).
 
-Split `<rdnn>.log` into per-script blocks first: by log prefix, banner, PID or script name. Record how you split it, so others can reproduce every count. `<result>…</result>` lines are extension-attribute output: match the value to the inventory extension attribute to attribute them, and treat them as inventory-run markers. Normalize counts to rates (per hour of evidence, per boot or per policy run) before comparing windows.
+Find each script's lines first, and record which layout you used ([Capture Layout](capture-layout.md#primary-sources)). With a per-script directory, each file plus its rotated siblings is one script; no split is needed, unless one file holds several scripts. With `<rdnn>.log`, split it into per-script blocks: by log prefix, banner, PID or script name. Record how you split it, so others can reproduce every count. `<result>…</result>` lines are extension-attribute output: match the value to the inventory extension attribute to attribute them, and treat them as inventory-run markers. Normalize counts to rates (per hour of evidence, per boot or per policy run) before comparing windows.
 
 | Measure | How to measure | Why it matters |
 |---|---|---|
@@ -46,7 +46,7 @@ Split `<rdnn>.log` into per-script blocks first: by log prefix, banner, PID or s
 | Concurrency and interleaving | Overlapping runs; lines from two runs or PIDs interleaved; a script that hands off to a LaunchDaemon and returns, so the next policy in the same check-in overlaps it; a script that runs `jamf policy -event <trigger>` to install a missing dependency, starting a nested policy run while enrollment workflows are still running | Shared files, locks, logs and on-screen dialogs collide |
 | Redundant runs and trigger use | Runs per policy per window, by trigger; repeats within minutes | Wasted work; recurring check-in used where an event trigger fits |
 | Secrets as policy parameters | Parameter values visible in command lines, EPM audit records or the script's own log | Policy parameters are not a secret store |
-| PII in uploaded logs | Usernames, real names, email addresses, serials, hardware UUIDs or IPs in `<rdnn>.log`, including webhook payloads logged verbatim; a real-name computer name repeats in every `<mdm>.log` host field | Collection uploads the log, so the data leaves the Mac |
+| PII in uploaded logs | Usernames, real names, email addresses, serials, hardware UUIDs or IPs in script logs (`<rdnn>.log` or `<script-log-dir>` files), including webhook payloads logged verbatim; a real-name computer name repeats in every `<mdm>.log` host field | Collection uploads the log, so the data leaves the Mac |
 | Endpoint-security and `install.log` noise | EPM audit records and `install.log` lines per run | Noise hides real security and install events |
 
 Jamf Pro passes script parameters 4 through 11 as positional arguments. They can appear in process listings, EPM audit command lines and any log the script writes. Report that a secret was exposed and where; never print the value.
@@ -63,6 +63,18 @@ awk '
   /^[[:space:]]*([-=#*~_][[:space:]]*){3,}$/ { banner++ }
   END { printf "total %d\tempty %d\tblank %d\tbanner %d\n", total, empty, blank, banner }
 ' "$log"
+
+# Per-script directory (optional): the same line-class census once per file.
+for f in 'logs/<bundle-directory>/<script-log-dir>'/**/*.log(.N); do
+  print -rn -- "$f: "
+  awk '
+    { total++ }
+    /^$/ { empty++; next }
+    /^[[:space:]]+$/ { blank++; next }
+    /^[[:space:]]*([-=#*~_][[:space:]]*){3,}$/ { banner++ }
+    END { printf "total %d\tempty %d\tblank %d\tbanner %d\n", total, empty, blank, banner }
+  ' "$f"
+done
 
 # Rough timestamp-shape census: first 25 characters with digits masked.
 cut -c1-25 "$log" | sed -E 's/[0-9]/9/g' | sort | uniq -c | sort -rn | head -n 20

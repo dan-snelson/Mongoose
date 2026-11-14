@@ -6,16 +6,20 @@
 #   Mongoose Collect
 #
 #   Gathers the client-side logs a full Mongoose audit reads into one flat .zip archive:
-#   system.log, the MDM agent log and the organization's reverse-domain script log, plus
-#   install.log, App Auto-Patch and EPM audit logs when present, Jamf Pro Self Service+ entries
-#   exported from Unified Logging when Self Service+ is installed, and a collection manifest
-#   (collection time with offset, macOS build, boot time, serial number, and per-member size,
-#   modification time and SHA-256).
+#   system.log, the MDM agent log and the organization's script logs (a reverse-domain script
+#   log, Parameter 4, and/or every plain *.log at any depth under a per-script log directory,
+#   Parameter 8), plus install.log, App Auto-Patch and EPM audit logs when present, Jamf Pro
+#   Self Service+ entries exported from Unified Logging when Self Service+ is installed, and a
+#   collection manifest (collection time with offset, macOS build, boot time, serial number,
+#   and per-member size, modification time, SHA-256 and source path).
 #
 #   Transferring the .zip is out of scope; the archive stays in the output directory.
+#   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
 #
 #   Run as root, for example from a Jamf Pro policy, or locally:
 #       sudo zsh mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
+#   or, with one log per script under a directory (Parameter 8):
+#       sudo zsh mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
 #
 ####################################################################################################
 #
@@ -23,6 +27,10 @@
 #
 #   Version 0.0.1, 10-Nov-2026, Dan K. Snelson (@dan-snelson)
 #       Initial release
+#
+#   Version 0.0.2, 14-Nov-2026, Dan K. Snelson (@dan-snelson)
+#       Added Parameter 8: a per-script log directory, collected recursively (plain *.log files
+#       and their rotated siblings; symlinks and hidden directories skipped; 500-file cap)
 #
 ####################################################################################################
 
@@ -44,7 +52,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="0.0.1"
+scriptVersion="0.0.2"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -82,6 +90,14 @@ outputDir="${6:-"/var/tmp"}"
 
 # Parameter 7: Self Service+ log window, as passed to `log show --last` (for example, 1h, 1d or 7d)
 selfServicePlusWindow="${7:-"36h"}"
+
+# Parameter 8: Per-script log directory, collected recursively (for example, /var/log/managed)
+scriptLogDir="${8:-""}"
+while [[ "${scriptLogDir}" == ?*/ ]]; do scriptLogDir="${scriptLogDir%/}"; done
+scriptLogDirMaxFiles=500                    # most *.log files collected from Parameter 8
+scriptLogDirStatus="not set"                # set in pre-flight: "accepted" or "rejected: <reason>"
+scriptLogDirFiles=0                         # *.log files discovered under Parameter 8
+scriptLogDirOverflow=0                      # discovered beyond scriptLogDirMaxFiles, not collected
 
 
 
@@ -237,15 +253,66 @@ function collectFile() {
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Copy every rotated sibling of a log (for example, system.log.0.gz), in numeric order
+#   ${1}  base log path
+#   ${2}  optional member-suffix prefix (for example, "a_" for a log nested under Parameter 8)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function collectRotated() {
     local baseFile="${1}"
+    local suffixPrefix="${2:-""}"
     local rotatedFile
 
     for rotatedFile in "${baseFile}".*(N.n); do
-        collectFile "${rotatedFile}" "${rotatedFile:t}" "optional"
+        collectFile "${rotatedFile}" "${suffixPrefix}${rotatedFile:t}" "optional"
     done
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Copy every plain *.log under the script-log directory (Parameter 8), at any depth, with its
+# rotated siblings; sets REPLY to the number of *.log files collected and returns 1 when none
+#   **/ does not follow symlinked directories, the (.) qualifier keeps plain files only (so
+#   symlinked files are skipped), and hidden files and directories, such as this script's
+#   staging directory, never match. Nothing is ever written under Parameter 8.
+#   Member suffix: the path relative to Parameter 8 with / replaced by _ (a/x.log -> a_x.log)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function collectScriptLogDir() {
+    local -a discoveredLogs
+    local logFile relativePath suffixPrefix
+    local collectedCount=0
+
+    discoveredLogs=( "${scriptLogDir}"/**/*.log(N.) )
+    scriptLogDirFiles=${#discoveredLogs}
+
+    if (( scriptLogDirFiles == 0 )); then
+        warning "Script-log directory '${scriptLogDir}' holds no plain *.log files"
+        REPLY=0
+        return 1
+    fi
+
+    if (( scriptLogDirFiles > scriptLogDirMaxFiles )); then
+        scriptLogDirOverflow=$(( scriptLogDirFiles - scriptLogDirMaxFiles ))
+        warning "Script-log directory '${scriptLogDir}' holds ${scriptLogDirFiles} *.log files; collecting the first ${scriptLogDirMaxFiles} and skipping ${scriptLogDirOverflow}"
+        absentOptional+=( "${scriptLogDirOverflow} *.log file(s) under ${scriptLogDir} beyond the ${scriptLogDirMaxFiles}-file cap" )
+        discoveredLogs=( "${(@)discoveredLogs[1,scriptLogDirMaxFiles]}" )
+    fi
+
+    info "Collecting ${#discoveredLogs} *.log file(s) from script-log directory '${scriptLogDir}'"
+
+    for logFile in "${discoveredLogs[@]}"; do
+        relativePath="${logFile#"${scriptLogDir}/"}"
+        suffixPrefix=""
+        [[ "${relativePath}" == */* ]] && suffixPrefix="${${relativePath:h}//\//_}_"
+        if collectFile "${logFile}" "${suffixPrefix}${logFile:t}" "optional"; then
+            (( collectedCount += 1 ))
+        fi
+        collectRotated "${logFile}" "${suffixPrefix}"
+    done
+
+    REPLY="${collectedCount}"
+    (( collectedCount > 0 ))
 }
 
 
@@ -339,6 +406,16 @@ function writeManifest() {
         print -r -- "macOS: ${osVersion:-unknown} (${osBuild:-unknown})"
         print -r -- "Boot time (UTC): ${bootUTC}"
         print -r -- "Script log (Parameter 4): ${scriptLog:-not set}"
+        if [[ "${scriptLogDirStatus}" == rejected:* ]]; then
+            print -r -- "Script-log directory (Parameter 8): ${scriptLogDir} (${scriptLogDirStatus})"
+        else
+            print -r -- "Script-log directory (Parameter 8): ${scriptLogDir:-not set}"
+        fi
+        if (( scriptLogDirOverflow )); then
+            print -r -- "Script-log files discovered: ${scriptLogDirFiles} (cap ${scriptLogDirMaxFiles}; ${scriptLogDirOverflow} not collected)"
+        else
+            print -r -- "Script-log files discovered: ${scriptLogDirFiles}"
+        fi
         print -r -- "MDM agent log (Parameter 5): ${mdmLog}"
         print -r -- "Self Service+ log window (Parameter 7): ${selfServicePlusWindow}"
         if [[ -n "${selfServicePlusApp}" ]]; then
@@ -352,6 +429,8 @@ function writeManifest() {
         print -r -- "Self Service+ entries are exported with log show: Modified is export time, and"
         print -r -- "compact style prints local time without a UTC offset (see Time zone)."
         print -r -- "SHA-256 is of the member as archived."
+        print -r -- "Parameter 8 members are named by their path under that directory, with / as _;"
+        print -r -- "source gives each member's original path."
         print -r -- ""
         print -r -- "Members"
         printf '%s\t%s\t%s\t%s\t%s\n' "member" "bytes" "modified" "sha256" "source"
@@ -423,6 +502,31 @@ fi
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Script-log directory (Parameter 8)
+#   An absolute path to an existing directory, other than /; read only, never written
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ -z "${scriptLogDir}" ]]; then
+    preFlight "Parameter 8 (script-log directory) not set; skipping per-script logs"
+elif [[ "${scriptLogDir}" != /* ]]; then
+    scriptLogDirStatus="rejected: not an absolute path"
+elif [[ "${scriptLogDir:A}" == "/" ]]; then
+    scriptLogDirStatus="rejected: the root directory"
+elif [[ ! -d "${scriptLogDir}" ]]; then
+    scriptLogDirStatus="rejected: not an existing directory"
+else
+    scriptLogDirStatus="accepted"
+    preFlight "Script-log directory '${scriptLogDir}' exists; collecting up to ${scriptLogDirMaxFiles} plain *.log files at any depth"
+fi
+
+if [[ "${scriptLogDirStatus}" == rejected:* ]]; then
+    warning "Parameter 8 '${scriptLogDir}' ${scriptLogDirStatus}; skipping per-script logs"
+    missingRequired+=( "script-log directory (Parameter 8 '${scriptLogDir}' ${scriptLogDirStatus})" )
+fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: Self Service+ log window
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -466,7 +570,7 @@ preFlight "Complete!"
 ####################################################################################################
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Required: system.log, MDM agent log, reverse-domain script log
+# Required: system.log, MDM agent log, organization script logs (Parameter 4, Parameter 8 or both)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 notice "Gathering required logs …"
@@ -477,12 +581,30 @@ collectRotated "/var/log/system.log"
 collectFile "${mdmLog}" "${mdmLog:t}" "required"
 collectRotated "${mdmLog}"
 
+# Either parameter meets the script-log requirement; Parameter 4 is required only on its own
+scriptLogsCollected=0
+
 if [[ -n "${scriptLog}" ]]; then
-    collectFile "${scriptLog}" "${scriptLog:t}" "required"
+    if [[ "${scriptLogDirStatus}" == "accepted" ]]; then
+        scriptLogClass="optional"
+    else
+        scriptLogClass="required"
+    fi
+    collectFile "${scriptLog}" "${scriptLog:t}" "${scriptLogClass}" && (( scriptLogsCollected += 1 ))
     collectRotated "${scriptLog}"
-else
-    warning "Parameter 4 not set; bundle lacks the reverse-domain script log"
-    missingRequired+=( "reverse-domain script log (Parameter 4 not set)" )
+fi
+
+if [[ "${scriptLogDirStatus}" == "accepted" ]]; then
+    collectScriptLogDir
+    (( scriptLogsCollected += REPLY ))
+fi
+
+if [[ -z "${scriptLog}" && -z "${scriptLogDir}" ]]; then
+    warning "Parameters 4 and 8 not set; bundle lacks the organization's script logs"
+    missingRequired+=( "organization script logs (Parameters 4 and 8 not set)" )
+elif [[ "${scriptLogDirStatus}" == "accepted" ]] && (( scriptLogsCollected == 0 )); then
+    warning "Neither Parameter 4 nor Parameter 8 yielded a script log"
+    missingRequired+=( "organization script logs (no file from Parameter 4 '${scriptLog:-not set}' or Parameter 8 '${scriptLogDir}')" )
 fi
 
 

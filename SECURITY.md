@@ -99,6 +99,7 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
   - It creates a new, unpredictably named staging directory with `mktemp -d`, never reuses an existing path, and on failure removes only the staging directory it created.
   - It never overwrites one collected file with another: a member name already in use gets a `-<n>-` prefix, and a file named twice is copied once.
   - It validates Parameter 7 against `<number>m`, `h` or `d` before passing it to `log show`, and falls back to `36h`.
+  - It accepts Parameter 8 only as an absolute path to an existing directory other than `/`, and otherwise warns and records the problem in the manifest. Under it, it collects only plain `*.log` files at any depth, plus their rotated siblings: `**` does not follow symlinked directories, symlinked files are skipped, hidden directories are skipped, and collection stops at 500 `*.log` files. It never writes into that directory.
   - It appends to the reverse-domain script log only when that file already exists.
   - Its manifest omits hostnames, usernames and IP addresses.
   - It builds the archive inside the staging directory, tests it with `unzip -t` and sets it to mode `600` there, then publishes it with `link`, which fails rather than replace, update or follow anything already at the archive path. It prints the archive's SHA-256.

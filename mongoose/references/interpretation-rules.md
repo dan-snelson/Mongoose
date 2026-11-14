@@ -7,7 +7,7 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 ### Installer Success Is Not Postinstall Success
 
 - A package can log `Installed` after its postinstall download failed, for example an SSL timeout (curl error 28).
-- Before calling a package Good, find the postinstall's own outcome in `install.log`, `<rdnn>.log` or the component's log, and check that what it fetches exists afterward.
+- Before calling a package Good, find the postinstall's own outcome in `install.log`, the script logs (`<rdnn>.log` or per-script files) or the component's log, and check that what it fetches exists afterward.
 - Report "installed, postinstall failed" as Bad, not Good.
 
 ### `MDM conflicts with DDM, ignoring OS updates`
@@ -26,7 +26,7 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 
 - Setup Assistant starts on Pacific time by default, so the offset changes mid-log once the time zone is set.
 - In `install.log`, BSD-style stamps without an offset during erase or early boot are UTC.
-- Anchor offset-less sources (system.log, `<mdm>.log`, `<rdnn>.log`) with system.log `BOOT_TIME` and `SHUTDOWN_TIME` epoch values and with events that appear in more than one source. Method: [Time Context](time-context.md).
+- Anchor offset-less sources (system.log, `<mdm>.log`, script logs) with system.log `BOOT_TIME` and `SHUTDOWN_TIME` epoch values and with events that appear in more than one source. Method: [Time Context](time-context.md).
 
 ### Collection Artifacts
 

@@ -44,7 +44,7 @@ print -r -- "mongoose @ $skill"
 1. **Header.** Scope. Mac: serial number with its source citation, plus model and OS when the evidence states them; if no source states a serial, say so here and under Limitations. Evidence window: start and end with their original offsets, plus duration from first boot. Baseline, when one is set: report file, set date and SHA-256 prefix. Prepared time, generating model and sanitization statement, per [Provenance](#provenance). Label legend.
 2. **Evidence and method.**
    - Captures table: name, class (prior or new), collection or snapshot time, integrity check, SHA-256 prefix.
-   - Members table: member, lines, notes (truncated tail, rotated, missing).
+   - Members table: member, lines, notes (truncated tail, rotated, missing). State the script-log layout: shared `<rdnn>.log`, per-script files under `<script-log-dir>`, or both.
    - Handling: hashes before and after, nothing executed, streamed not extracted. Name any extraction and where it went.
    - Skills applied: `mongoose @ <short-sha>`, per [Provenance](#provenance), and the references used.
 3. **Time context.**
@@ -62,7 +62,7 @@ print -r -- "mongoose @ $skill"
 
 ## Script-Deployment Lens
 
-For each organization script seen in `<rdnn>.log`, and its policy in `<mdm>.log`, assess:
+For each organization script seen in `<rdnn>.log` or in its own file under `<script-log-dir>`, and its policy in `<mdm>.log`, assess:
 
 - versioned log prefix
 - timestamp offset
@@ -148,7 +148,7 @@ rg -c -F -- "$serial" "$report" || print -r -- '0'
 |---|---|---|
 | `<prefix>-system.log` | <n> | <truncated tail? rotated?> |
 
-- **Handling:** SHA-256 before and after match; nothing executed; streamed, not extracted.
+- **Handling:** SHA-256 before and after match; nothing executed; streamed, not extracted. Script logs: <`<rdnn>.log` / per-script files under `<script-log-dir>` / both>.
 - **Skills applied:** mongoose @ `<short-sha>`<, local edits> (<references used>)
 
 ## Time context

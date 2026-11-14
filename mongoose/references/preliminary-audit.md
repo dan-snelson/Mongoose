@@ -77,7 +77,7 @@ Script extension attributes are the JSON-visible footprint of custom scripts. Th
 
 ## Not Observable From Inventory Alone
 
-State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, `<rdnn>.log` content, boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record.
+State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, script-log content (`<rdnn>.log` or `<script-log-dir>`), boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record.
 
 ## Commands
 
@@ -108,5 +108,5 @@ spctl --status
 # Group 2: confirm MDM enrollment and that the primary logs exist for a full audit.
 # sudo: no. Return: all output. Stop: finishes on its own.
 profiles status -type enrollment
-ls -l '/var/log/system.log' '/var/log/<mdm>.log' '/var/log/<rdnn>.log'
+ls -l '/var/log/system.log' '/var/log/<mdm>.log' '/var/log/<rdnn>.log' '/var/log/<script-log-dir>'
 ```

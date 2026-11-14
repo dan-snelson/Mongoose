@@ -31,8 +31,8 @@ The maintained skill surface is [mongoose/SKILL.md](mongoose/SKILL.md) and the f
 
 `scripts/mongooseCollect.zsh` runs as root on managed Macs. Changes to it should:
 
-- Keep it read-only on the Mac, apart from its staging directory and archive (both readable by root only) and its own lines in a reverse-domain script log that already exists.
-- Take every path from the operator (Jamf Pro parameters or arguments), never from content on the Mac.
+- Keep it read-only on the Mac, apart from its staging directory and archive (both readable by root only) and its own lines in a reverse-domain script log that already exists. Never write into the Parameter 8 script-log directory.
+- Take every path from the operator (Jamf Pro parameters or arguments), never from content on the Mac. Parameter 8 is a directory the operator names; files under it are discovered only by the `*.log` glob (plain files, no symlinks, no hidden directories, capped at 500).
 - Never add hostnames, usernames or IP addresses to the manifest, and never send data off the Mac.
 - Keep the README's parameter table in step with the script's header.
 

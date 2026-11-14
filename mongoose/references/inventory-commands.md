@@ -58,12 +58,12 @@ done
 ```zsh
 capture_dir='logs/<bundle-directory>'
 
-# Files, sizes and formats.
-find "$capture_dir" -maxdepth 2 -type f -exec stat -f '%z bytes\t%N' {} \;
-find "$capture_dir" -maxdepth 2 -type f -exec file {} \;
+# Files, sizes and formats, at any depth (nested script-log folders included).
+find "$capture_dir" -type f -exec stat -f '%z bytes\t%N' {} \;
+find "$capture_dir" -type f -exec file {} \;
 
 # Line counts; decompress rotated logs first, or wc counts compressed bytes.
-for f in "$capture_dir"/*(.N); do
+for f in "$capture_dir"/**/*(.N); do
   case "$f" in
     *.gz)  print -r -- "$(gzcat "$f" | wc -l | tr -d ' ') $f" ;;
     *.bz2) print -r -- "$(bzcat "$f" | wc -l | tr -d ' ') $f" ;;
@@ -72,7 +72,7 @@ for f in "$capture_dir"/*(.N); do
 done
 
 # Coverage window and truncated tails: first and last line per log.
-for f in "$capture_dir"/*.log(.N); do
+for f in "$capture_dir"/**/*.log(.N); do
   print -r -- "== $f"
   head -n 1 "$f"
   tail -n 1 "$f"
@@ -85,10 +85,46 @@ rg -n -i 'error|fail|denied|killed' "$capture_dir"
 rg -n -i -m 5 -e 'serial' -e 'S/N' "$capture_dir"
 
 # Read rotated logs without extracting them in place.
-for gz in "$capture_dir"/*.gz(.N); do
+for gz in "$capture_dir"/**/*.gz(.N); do
   print -r -- "== $gz"
   gzcat "$gz" | rg -n 'BOOT_TIME|SHUTDOWN_TIME'
 done
+```
+
+## Script-Log Directory
+
+When the Mac Admin names a per-script log directory ([Capture Layout](capture-layout.md#primary-sources)), list its members and characterize each one. Run the ZIP safety check above first. The folder path is data: pass it with `awk -v`, never splice it into the program.
+
+```zsh
+bundle='logs/<bundle>.zip'
+capture_dir='logs/<bundle-directory>'
+log_dir='Logs/<script-log-dir>/'  # the folder as the capture shows it, ending in /
+
+# ZIP: first line, last line and line count per member under the folder.
+zipinfo -1 "$bundle" | awk -v dir="$log_dir" 'index($0, dir) == 1 && !/\/$/' |
+  while IFS= read -r member; do
+    print -r -- "== $member"
+    case "$member" in
+      *.gz)  unzip -p "$bundle" "$member" | gzcat ;;
+      *.bz2) unzip -p "$bundle" "$member" | bzcat ;;
+      *)     unzip -p "$bundle" "$member" ;;
+    esac | awk 'NR == 1 { print } { last = $0 } END { if (NR > 1) print last; print NR " lines" }'
+  done
+
+# Folder: the same, at any depth under the folder.
+for f in "$capture_dir/$log_dir"**/*(.N); do
+  print -r -- "== $f"
+  case "$f" in
+    *.gz)  gzcat "$f" ;;
+    *.bz2) bzcat "$f" ;;
+    *)     cat "$f" ;;
+  esac | awk 'NR == 1 { print } { last = $0 } END { if (NR > 1) print last; print NR " lines" }'
+done
+
+# mongooseCollect flattens paths. Map members back to the directory with the
+# manifest's tab-separated columns: member, bytes, modified, sha256, source.
+unzip -p "$bundle" '<prefix>-mongooseCollect-manifest.txt' |
+  awk -F '\t' -v dir='/var/log/<script-log-dir>/' 'NF == 5 && index($5, dir) == 1 { print $1 "\t" $5 }'
 ```
 
 ## MDM Inventory JSON
