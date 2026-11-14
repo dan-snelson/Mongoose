@@ -28,7 +28,7 @@ Keep these distinct in notes, citations and the report:
 |---|---|---|---|---|
 | `system.log` | `Mmm dd HH:MM:SS` (BSD syslog) | No | No | Infer year from collection time; anchor with `BOOT_TIME` / `SHUTDOWN_TIME` epochs |
 | `<mdm>.log` (Jamf Pro `jamf.log`) | `Ddd Mmm dd HH:MM:SS <hostname> jamf[<pid>]:` | No | No | As system.log; cross-anchor on shared events |
-| `<rdnn>.log` | Set by each script; often several formats in one file | Varies | Varies | Count formats per script; anchor each to system.log or `<mdm>.log` events |
+| Script logs (`<rdnn>.log` or per-script files) | Set by each script; often several formats in one file | Varies | Varies | Count formats per script and per file; anchor each to system.log or `<mdm>.log` events |
 | `install.log` | `YYYY-MM-DD HH:MM:SS` plus a short offset such as `-07` | Yes | Yes | Use the stated offset; BSD-style lines without an offset during erase or early boot are UTC |
 | Unified log (`log show`) | Rendered in the zone passed to `--timezone` | Yes | Yes | Always pass `--timezone` and state the zone |
 | Sysdiagnose file name | Capture start with an explicit UTC offset | Yes | Yes | Confirm against `sysdiagnose.log` |
@@ -38,7 +38,7 @@ Keep these distinct in notes, citations and the report:
 ## Anchoring Techniques
 
 - **Boot and shutdown epochs.** system.log lines carrying `BOOT_TIME` and `SHUTDOWN_TIME` include an epoch value. Convert it to UTC and compare it with the local stamp on the same line. The difference is the effective offset at that moment.
-- **Shared events.** An event that appears in more than one source fixes the offset of the offset-less one. Examples: a policy run in `<mdm>.log` and its script's lines in `<rdnn>.log`; a package install in `<mdm>.log` and in `install.log`, which carries an offset.
+- **Shared events.** An event that appears in more than one source fixes the offset of the offset-less one. Examples: a policy run in `<mdm>.log` and its script's lines in `<rdnn>.log` or its own script log; a package install in `<mdm>.log` and in `install.log`, which carries an offset.
 - **Setup Assistant.** Setup Assistant starts on Pacific time by default. The offset can change mid-log once the time zone is set by the user, by location services, by a profile or by an enrollment package or script. A switch that falls between one package's preinstall and postinstall output in `install.log` makes that package a lead, not a confirmed setter; confirm it in unified logs. Split the timeline into offset segments and re-anchor each one.
 - **Offset switch.** The last `install.log` line with the old offset and the first with the new one bound the switch to seconds. Offset-less sources show a false jump of the offset difference there: not a gap, a sleep or a slow run. Correct any duration that spans it. A script that logs its own measured wait across the switch confirms the anchor. Values stored as offset-less wall-clock time before the switch, such as extension-attribute dates, keep the old offset.
 - **Early install.log.** BSD-style `install.log` stamps without an offset during erase or early boot are UTC.

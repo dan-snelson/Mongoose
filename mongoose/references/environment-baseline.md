@@ -9,7 +9,7 @@ A baseline is the Mac Admin's reference for how managed Macs behave in their env
 Check the report itself, not the request. Only a full audit report qualifies:
 
 - File name `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`, or the same name with a `-<n>` rerun suffix, and title `# Mongoose: The Good, The Bad, and The Ugly`.
-- The Members table covers `system.log`, `<mdm>.log` and `<rdnn>.log`.
+- The Members table covers `system.log`, `<mdm>.log` and the script logs (`<rdnn>.log` or `<script-log-dir>`).
 - The Handling line shows matching SHA-256 before and after.
 
 Refuse a preliminary report from [Preliminary Audit](preliminary-audit.md): a `mongoose-gbu-preliminary-` file name, a `(Preliminary)` title or an inventory-JSON-only scope. One inventory snapshot shows state. It shows no policy runs, script behavior, exit codes, durations, rates or log noise, and those are what a baseline must hold. Offer the path instead: collect the client-log bundle, run the full audit with the preliminary report as the prior report, then set that report.
@@ -47,7 +47,7 @@ Write the record to `reports/mongoose-baseline.md`:
 - **Set:** <YYYY-MM-DD>
 - **Captures:** `<capture>` (`<sha256-prefix>`), from the report's Captures table
 - **Comparability:** <model and architecture>; macOS <version> (<build>); <MDM agent version>; evidence window <duration> from first boot; enrollment age at collection <age>
-- **Primary sources:** `system.log`, `<mdm>.log`, `<rdnn>.log`. Gaps accepted: <none / list>
+- **Primary sources:** `system.log`, `<mdm>.log`, script logs (`<rdnn>.log` or `<script-log-dir>`). Gaps accepted: <none / list>
 - **Bad and Ugly accepted at set time:** <none / B1. title; U1. title>
 ```
 

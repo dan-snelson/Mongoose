@@ -1,12 +1,12 @@
 ---
 name: mongoose
-description: Deep audit of MDM policies and custom script deployments on managed Macs. Reads system.log, the MDM agent log (for example jamf.log) and the organization's reverse-domain script log (for example com.example.it.log), plus optional install.log, an MDM inventory JSON export and an Apple sysdiagnose. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Produces an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial number and sanitizing other identifiers, with a timeline, a per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Re-audits prior findings with a delta vs prior audit. Compares audits with an environment baseline set from a full report, never a preliminary one. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, client-log bundle, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit, set baseline.
+description: "Deep audit of MDM policies and custom script deployments on managed Macs, run off the Mac on a collected client-log bundle. Reads system.log, the MDM agent log (for example jamf.log) and the organization's script logs: one reverse-domain log (for example com.example.it.log) or a directory of per-script logs. Optional: install.log, MDM inventory JSON and Apple sysdiagnose. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Writes an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial and sanitizing other identifiers, with a timeline, a per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Compares audits with an environment baseline set from a full report. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, client-log bundle, script-log directory, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit, set baseline."
 ---
 # Mongoose
 
 Audit how MDM policies and custom script deployments behave on managed Macs, then write "The Good, The Bad, and The Ugly".
 
-Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log`) and `/var/log/<rdnn>.log`, the organization's reverse-domain script log (for example `/var/log/org.churchofjesuschrist.log`). Optional: `install.log`, an MDM inventory JSON export, an Apple sysdiagnose, follow-up `Terminal Saved Output*.txt` transcripts and a prior Mongoose report. An MDM inventory JSON on its own, such as a Jamf Pro Computer Record, gets a preliminary audit.
+Mongoose runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollect.zsh` or any log-collection policy; no agent or LLM runs on the managed Mac. Primary inputs: `system.log`, `<mdm>.log` (Jamf Pro: `jamf.log`) and script logs: `<rdnn>.log` (for example `/var/log/com.example.it.log`), the default when present, or a per-script directory the Mac Admin names, `<script-log-dir>`. Optional: `install.log`, inventory JSON, sysdiagnose, `Terminal Saved Output*.txt`, a prior report.
 
 ## Core Invariants
 
@@ -24,7 +24,7 @@ Primary inputs: `/var/log/system.log`, `/var/log/<mdm>.log` (Jamf Pro: `jamf.log
 1. **Inventory.** List every capture and member from contents, not names. Note gaps and truncation. Record the Mac's serial number and the source that states it. Check for a set baseline.
 2. **Hashes.** Record SHA-256 of every capture before analysis; re-check at the end.
 3. **Time context.** Establish offsets and anchors before correlating anything.
-4. **Symptom and script focus.** Locate the reported symptom, then assess each organization script through the script-deployment lens.
+4. **Symptom and script focus.** Locate the reported symptom, then assess each organization script, from `<rdnn>.log` or its own file, through the script-deployment lens.
 5. **Broad health.** Run a broad health pass without letting background noise displace the focus.
 6. **Timeline.** Build one material timeline, normalized to one offset, citing original `file:Lnn` and timestamp.
 7. **GBU report.** Write the report; add the delta vs prior audit on a second pass, and the delta vs baseline when one is set.

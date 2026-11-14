@@ -6,9 +6,11 @@
 This AI skill analyzes key logs …
 - `/var/log/system.log`
 - `/var/log/<mdm>.log` (i.e., Jamf Pro's `/var/log/jamf.log`)
-- `/var/log/<rdnn>.log` (i.e., your organization's reverse-domain script log, for example `/var/log/com.example.it.log`)
+- Your organization's script logs: either `/var/log/<rdnn>.log` (i.e., a reverse-domain script log, for example `/var/log/com.example.it.log`) or a directory with one log per script (for example `/var/log/managed/`)
 
 … then produces a clear Markdown report structured as “The Good, The Bad, and The Ugly.”
+
+Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built by [`mongooseCollect.zsh`](#collect) or by an existing "Collect Logs" policy, so no agent or LLM runs on your managed Macs.
 
 ## What it reads
 
@@ -16,14 +18,14 @@ This AI skill analyzes key logs …
 |---|---|---|
 | `/var/log/system.log` and rotated `.gz` files | Yes | Boots, shutdowns, launchd and daemon activity |
 | `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
-| `/var/log/<rdnn>.log` | Yes | Your organization's reverse-domain script log, for example `/var/log/com.example.it.log` |
+| `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/com.example.it.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
 | `/var/log/install.log` | Optional | Package and software-update activity |
 | MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
 | An environment baseline (`reports/mongoose-baseline.md`) | Optional | Compares each audit with the full report you set as your environment's reference |
 
-These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp. Mongoose detects the layout from the contents, not the names.
+These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp, sometimes in nested folders. Mongoose detects the layout from the contents, not the names. Tell it where per-script logs live; it asks when it cannot tell.
 
 ## What it produces
 
@@ -99,21 +101,25 @@ Run your agent from this checkout. Mongoose writes reports to `reports/` in the 
 
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) builds the client-log bundle on the Mac being audited. Run it as root. It needs no MDM API access and no credentials.
 
-It copies `system.log`, the MDM agent log and your reverse-domain script log, with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
+It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/com.example.it.log` | None. When unset, the bundle lacks it and the script warns |
+| 4 | Reverse-domain script log, for example `/var/log/com.example.it.log` | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
 | 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
+| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files. Symlinks and hidden directories are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` is refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
 sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log
+
+# One log per script under a directory (Parameter 8).
+sudo zsh scripts/mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
 > **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
 
@@ -129,6 +135,10 @@ Mongoose activates when a request matches its description. You can also call it 
 Put captures in the git-ignored `logs/` directory, then ask:
 
 > Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `com.example.it.log`.
+
+When each script writes its own log:
+
+> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script logs are one file per script in `/var/log/managed/`.
 
 With only a Computer Record JSON:
 

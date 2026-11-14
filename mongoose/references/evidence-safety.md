@@ -62,6 +62,7 @@ Report identity is the one exception. Reports keep the Mac's serial number by de
 | Managed local admin account | `<managed-admin>` |
 | MDM server URL | `<mdm-url>` |
 | Organization reverse-domain | `com.example` |
+| Organization script-log directory | `<script-log-dir>` |
 | IP address, MAC address, SSID, internal URL | `<ip>`, `<mac-address>`, `<ssid>`, `<internal-url>` |
 | Smart group, ring or scope name | `<group>` |
 | Secret, token or key | `<redacted>` |

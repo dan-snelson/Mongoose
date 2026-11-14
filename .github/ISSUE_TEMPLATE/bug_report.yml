@@ -102,6 +102,7 @@ body:
         - system.log (with or without rotated files)
         - MDM agent log (for example jamf.log)
         - Reverse-domain script log (for example com.example.it.log)
+        - Per-script log directory (for example /var/log/managed/)
         - install.log
         - Self Service+ unified log export
         - App Auto-Patch or EPM audit logs
