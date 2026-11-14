@@ -54,6 +54,8 @@ Jamf Pro passes script parameters 4 through 11 as positional arguments. They can
 ```zsh
 log='logs/<bundle-directory>/<prefix>-com.example.it.log'
 mdm_log='logs/<bundle-directory>/<prefix>-jamf.log'
+# A Unified Logging MDM agent log (manifest source is a log show command):
+# mdm_log='logs/<bundle-directory>/<prefix>-mdm-agent.log'
 
 # Line classes: total, empty, whitespace only, banner only.
 awk '

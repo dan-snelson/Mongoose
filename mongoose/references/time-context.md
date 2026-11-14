@@ -31,6 +31,7 @@ Keep these distinct in notes, citations and the report:
 | Script logs (`<rdnn>.log` or per-script files) | Set by each script; often several formats in one file | Varies | Varies | Count formats per script and per file; anchor each to system.log or `<mdm>.log` events |
 | `install.log` | `YYYY-MM-DD HH:MM:SS` plus a short offset such as `-07` | Yes | Yes | Use the stated offset; BSD-style lines without an offset during erase or early boot are UTC |
 | Unified log (`log show`) | Rendered in the zone passed to `--timezone` | Yes | Yes | Always pass `--timezone` and state the zone |
+| Collector compact exports (`*-mdm-agent.log`, `*-selfserviceplus.log`) | `YYYY-MM-DD HH:MM:SS.fff` local time (`log show --style compact`, no `--timezone`) | Yes | No | Normalize with the manifest `Time zone`; Modified is export time, not agent activity |
 | Sysdiagnose file name | Capture start with an explicit UTC offset | Yes | Yes | Confirm against `sysdiagnose.log` |
 | MDM inventory JSON | ISO 8601 or epoch, per field | Yes | Usually UTC | Record the snapshot time the export states |
 | `Terminal Saved Output*.txt` | Only what the commands printed | Varies | Varies | Treat as a later capture, not incident evidence |
