@@ -16,7 +16,7 @@ A ZIP or directory of copied `/var/log` files, made by a log-collection policy o
 
 Reports name the Mac by serial number. Look for it in these places, and cite the source:
 
-- MDM inventory JSON export: search key paths for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path and snapshot time. Use the hardware or general serial; disk and certificate serials do not identify the Mac.
+- MDM inventory export (JSON or CSV): search key paths or column names for `serial` (see [Inventory Commands](inventory-commands.md)), then cite the key path, or the CSV data row and column, and snapshot time. Use the hardware or general serial; disk and certificate serials do not identify the Mac.
 - Organization scripts that print it to their script logs, such as onboarding or health-check banners.
 - A collection manifest member or a member-name prefix that carries it. Cross-check either against a log or inventory source.
 - Sysdiagnose hardware data in `SystemProfiler/*.spx`.
@@ -39,7 +39,8 @@ Cross-check rules live in [Evidence Safety](evidence-safety.md). Never infer a s
 ## Optional Sources
 
 - `install.log`: macOS Installer, package and software-update activity.
-- MDM inventory JSON export: server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive. On its own it supports a [Preliminary Audit](preliminary-audit.md). In a Jamf Pro Computer Record, an `attachments[].sizeBytes` equal to the bundle's byte size confirms that the log-capture upload reached the MDM.
+- MDM inventory export (JSON or CSV): server-side state at snapshot time. Record the snapshot time and its age relative to the capture. Treat every field as sensitive. On its own it supports a [Preliminary Audit](preliminary-audit.md). In a Jamf Pro Computer Record, an `attachments[].sizeBytes` equal to the bundle's byte size confirms that the log-capture upload reached the MDM. A multi-device export (list-shaped JSON or CSV) follows [Inventory Exports](inventory-exports.md#multi-device-exports), with or without a bundle.
+- Console history excerpt, such as a Jamf Pro policy log: the console's record of what it sent, supplied by the operator. Follow [Inventory Exports](inventory-exports.md#console-history-excerpt), in a full or preliminary audit.
 - Apple sysdiagnose: see [Sysdiagnose Capture Layout](sysdiagnose/capture-layout.md).
 - `Terminal Saved Output*.txt`: follow-up commands run on the impacted Mac, with their output. Later transcripts may refine or replace earlier hypotheses. In Jamf Pro, `jamf recon -verbose` output ends with `<computer_id>`; use it to confirm that a transcript and a bundle refer to the same record, and treat the value as sensitive.
 - A prior Mongoose report: input to a re-audit. See [Re-Audit Delta](re-audit-delta.md).

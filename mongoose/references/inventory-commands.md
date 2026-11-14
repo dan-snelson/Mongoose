@@ -147,12 +147,28 @@ jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | sort -u | head
 # only the hardware or general section names the Mac.
 jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | rg -i 'serial'
 
+jq -r 'paths(scalars) | map(if type == "number" then "[]" else tostring end) | join(".")' "$inventory" | sort -u | head -n 200  # list-shaped: indices as []
+jq -r '(if type == "array" then ["(root)", length] else empty end), (paths(arrays) as $p | select($p | all(type == "string")) | [($p | join(".")), (getpath($p) | length)]) | @tsv' "$inventory"  # array lengths; one is the device count
+jq -c --arg s '<serial>' 'paths(. == $s)' "$inventory"  # path of the record holding the serial
+
 # Snapshot candidate: a 13-digit epoch in the file name, as UTC. Compare with mtime.
 epoch_ms=$(print -r -- "${inventory:t}" | rg -o '[0-9]{13}' | head -n 1)
 [[ -n "$epoch_ms" ]] && date -u -r $(( epoch_ms / 1000 )) '+%Y-%m-%dT%H:%M:%SZ'
 
 # Print one key path once you know it is needed.
 jq '.<key>.<path>' "$inventory"
+```
+
+### Inventory CSV
+
+```zsh
+csv='logs/<inventory-export>.csv'
+file --mime-encoding "$csv"  # us-ascii or utf-8 only; otherwise stop and ask. Convert nothing in place.
+# Rows as JSON arrays, header row first, every cell kept as text. In memory; nothing written to disk.
+csvrows() { local n i c=(); n=$(sqlite3 :memory: -cmd '.import --csv /dev/stdin h' "select count(*) from pragma_table_info('h')" < "$1" 2>/dev/null)
+  [[ "$n" == <1-> ]] || { print -u2 "csvrows: no header read"; return 1; }; for i in {1..$n}; do c+=("c$i text"); done; sqlite3 -json :memory: "create table t(${(j:,:)c})" '.import --csv /dev/stdin t' 'select * from t' < "$1" | jq -c 'map([.[]])'; }
+csvrows "$csv" | jq -r '.[0] as $h | .[1:] as $r | "data rows\t\($r | length)", (range($h | length) as $i | [$i + 1, $h[$i], ([$r[] | select((.[$i] // "") != "")] | length)] | @tsv)'  # then column number, name, populated rows; none: empty or unreadable
+csvrows "$csv" | jq --arg c '<column-number>' --arg s '<serial>' 'to_entries[1:][] | select(.value[$c | tonumber - 1] == $s) | .key'  # data-row number
 ```
 
 ### Preliminary Audit Projections
@@ -181,4 +197,4 @@ jq -r "$eas"' eas | select((.values // []) | join(" ") | test("\\b([0-9]{1,3}\\.
 jq -r "$eas"' eas | select((.values // []) | join(" ") | test("error|not found|no such file|permission denied"; "i")) | .name' "$inventory"
 ```
 
-Prefer `rg` for focused searches. Use `head`, `tail`, `sed -n`, `awk`, `file`, `wc`, `stat`, `zipinfo`, `unzip -l`, `unzip -p`, `unzip -t`, `gzcat` and `jq` to characterize large inputs before broad searches. For sysdiagnose archives, see [Archive And Log Commands](sysdiagnose/archive-and-log-commands.md).
+Prefer `rg` for focused searches. Use `head`, `tail`, `sed -n`, `awk`, `file`, `wc`, `stat`, `zipinfo`, `unzip -l`, `unzip -p`, `unzip -t`, `gzcat`, `jq` and in-memory `sqlite3` to characterize large inputs before broad searches. For sysdiagnose archives, see [Archive And Log Commands](sysdiagnose/archive-and-log-commands.md).

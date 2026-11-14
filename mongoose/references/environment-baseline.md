@@ -12,7 +12,7 @@ Check the report itself, not the request. Only a full audit report qualifies:
 - The Members table covers `system.log`, `<mdm>.log` and the script logs (`<rdnn>.log` or `<script-log-dir>`).
 - The Handling line shows matching SHA-256 before and after.
 
-Refuse a preliminary report from [Preliminary Audit](preliminary-audit.md): a `mongoose-gbu-preliminary-` file name, a `(Preliminary)` title or an inventory-JSON-only scope. One inventory snapshot shows state. It shows no policy runs, script behavior, exit codes, durations, rates or log noise, and those are what a baseline must hold. Offer the path instead: collect the client-log bundle, run the full audit with the preliminary report as the prior report, then set that report.
+Refuse a preliminary report from [Preliminary Audit](preliminary-audit.md): a `mongoose-gbu-preliminary-` file name, a `(Preliminary)` title or an inventory-export-only scope (inventory-JSON-only in older reports). One inventory snapshot shows state. It shows no policy runs, script behavior, exit codes, durations, rates or log noise, and those are what a baseline must hold. Offer the path instead: collect the client-log bundle, run the full audit with the preliminary report as the prior report, then set that report.
 
 Ask for explicit confirmation, and record the answer, when a full report:
 

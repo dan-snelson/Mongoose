@@ -1,15 +1,10 @@
-# Preliminary Audit: Inventory JSON Only
+# Preliminary Audit: Inventory Export Only
 
-Use when an MDM inventory JSON is the only capture, for example a Jamf Pro Computer Record, and no client-side logs are available. Run the `SKILL.md` workflow against the JSON. The result is a preliminary report: it shows state at one snapshot and never replaces the full audit.
+Use when an MDM inventory export (JSON or CSV) is the only capture, for example a Jamf Pro Computer Record, and no client-side logs are available. Run the `SKILL.md` workflow against the export. The result is a preliminary report: it shows state at one snapshot and never replaces the full audit.
 
 ## Recognize The Export
 
-- Detect the shape from key paths, not the file name. Print key paths, not values ([Inventory Commands](inventory-commands.md#mdm-inventory-json)).
-- **Jamf Pro API Computer Record** (the worked example): top-level camelCase sections such as `general`, `hardware`, `operatingSystem`, `security`, `diskEncryption`, `storage`, `localUserAccounts`, `applications`, `configurationProfiles`, `certificates`, `packageReceipts`, `groupMemberships`, `extensionAttributes` and `attachments`. Extension attributes also nest inside `general`, `hardware`, `operatingSystem` and `userAndLocation`.
-- **Jamf Pro Classic API:** one `computer` object with snake_case keys. Map each check below by key-path search.
-- **Other MDMs:** find the equivalent fields by key-path search. Never assume paths.
-- Record every section as present, empty or absent. An API request can limit sections, and an empty array can mean "not collected" rather than "none".
-- File names such as `<computer-id>_response_<epoch-ms>.json` are common. The prefix is sensitive; the epoch is a download-time candidate.
+Detect the shape, and select one device from a multi-device export, with [Inventory Exports](inventory-exports.md).
 
 ## Device Identity
 
@@ -65,6 +60,7 @@ Script extension attributes are the JSON-visible footprint of custom scripts. Th
 - **Freshness:** date-valued attributes far older than the last inventory.
 - **Privacy:** IP addresses, SSIDs, geolocation, account names, email addresses, directory group lists or free-text user reasons. The value leaves the Mac at every inventory. Report Bad for privacy review; report Ugly when a value holds a secret or credential. Name the attribute; never quote the value.
 - **Not observable:** exit codes, duration, concurrency, triggers and policy parameters need `<mdm>.log`.
+- **No script-result fields:** an export with none marks the whole lens Not observable.
 
 | Extension attribute | Collector | Value state | Shape vs type | Size | Freshness | Privacy | Exit, duration, trigger |
 |---|---|---|---|---|---|---|---|
@@ -77,7 +73,7 @@ Script extension attributes are the JSON-visible footprint of custom scripts. Th
 
 ## Not Observable From Inventory Alone
 
-State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, script-log content (`<rdnn>.log` or `<script-log-dir>`), boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record.
+State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, script-log content (`<rdnn>.log` or `<script-log-dir>`), boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record. In Mosyle, policy and script history is only in the web console's Commands Activity Log; state it under Limitations and whether an excerpt was supplied.
 
 ## Commands
 
@@ -89,8 +85,8 @@ Follow [Report: The Good, The Bad, And The Ugly](report-gbu.md) with these chang
 
 - **File:** `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time in UTC.
 - **Title:** `# Mongoose (Preliminary): The Good, The Bad, and The Ugly`.
-- **Scope:** inventory JSON only; client-side logs not reviewed. Evidence window: enrollment to snapshot, with the last-inventory time.
-- **Evidence and method:** replace the Members table with a Sections table: section, items, notes (empty, absent, stale).
+- **Scope:** inventory export only; client-side logs not reviewed. Evidence window: enrollment to snapshot, with the last-inventory time.
+- **Evidence and method:** replace the Members table with a Sections table: section, items, notes (empty, absent, stale). For a CSV: column, populated rows, notes. Add one row for a [Console History Excerpt](inventory-exports.md#console-history-excerpt) when supplied.
 - **Time context:** one row per time field above, normalized to UTC.
 - **Lens:** the extension-attribute lens replaces the script-deployment lens.
 - **Baseline:** a preliminary report can never be set as the environment baseline. The full audit's report can ([Environment Baseline](environment-baseline.md)).

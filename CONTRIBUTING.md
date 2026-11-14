@@ -33,7 +33,8 @@ Mongoose uses Jamf Pro as its worked example and never guesses another MDM's log
 
 - The vendor-documented path of the MDM agent log, with a link to that documentation. For an agent that writes no log file, give instead the Unified Logging predicate (its process or subsystem) and a sanitized `log show` excerpt that it matches.
 - A short agent-log snippet that shows the timestamp format, a policy or command name, and the exit status or result.
-- The shape of the MDM's inventory export, as key paths only, naming the key that holds the Mac's serial number.
+- The shape of the MDM's inventory export, as key paths only for JSON or the header row only for CSV, naming the key or column that holds the Mac's serial number.
+- Where policy and script history lives when the inventory export does not hold it, such as a web console log, and whether it can be exported.
 - How the agent log records time zone and UTC offset, if known.
 - The placeholders used, such as `<serial>`, `<computer-id>`, `<hostname>` and `<mdm-url>`.
 

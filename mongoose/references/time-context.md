@@ -34,6 +34,8 @@ Keep these distinct in notes, citations and the report:
 | Collector compact exports (`*-mdm-agent.log`, `*-selfserviceplus.log`) | `YYYY-MM-DD HH:MM:SS.fff` local time (`log show --style compact`, no `--timezone`) | Yes | No | Normalize with the manifest `Time zone`; Modified is export time, not agent activity |
 | Sysdiagnose file name | Capture start with an explicit UTC offset | Yes | Yes | Confirm against `sysdiagnose.log` |
 | MDM inventory JSON | ISO 8601 or epoch, per field | Yes | Usually UTC | Record the snapshot time the export states |
+| MDM inventory CSV | As exported, per column | Varies | Often none | Without an offset, unanchored: ask for the export's time zone ([Inventory Exports](inventory-exports.md#csv-exports)) |
+| Console history excerpt | As the console displays it | Varies | Console time zone, often unstated | Use the zone shown; unstated means ask. Server-side send time, not client execution |
 | `Terminal Saved Output*.txt` | Only what the commands printed | Varies | Varies | Treat as a later capture, not incident evidence |
 
 ## Anchoring Techniques
