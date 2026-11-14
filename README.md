@@ -24,6 +24,7 @@ Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built 
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
 | An environment baseline (`reports/mongoose-baseline.md`) | Optional | Compares each audit with the full report you set as your environment's reference |
+| A directory of finished Mongoose reports plus a manifest | Optional | Instead of a capture: one client's endpoint reports, rolled up into an MDM health summary |
 
 These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp, sometimes in nested folders. Mongoose detects the layout from the contents, not the names. Tell it where per-script logs live; it asks when it cannot tell.
 
@@ -47,6 +48,8 @@ You can set one full report as your environment baseline. Every later audit, of 
 
 With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
 
+For a managed service provider (MSP) with several clients, each on one MDM, Mongoose can also write an MDM health summary, `reports/mongoose-mdm-health-<client>-<YYYY-MM-DD-HHMMSS>.md`, named from the newest included report's time in UTC. An **endpoint** is one physical Mac. The summary reads finished Mongoose reports (`mongoose-gbu-*.md`) from one report directory, listed in a Markdown manifest, and never the captures behind them. It covers one client's MDM per summary and never compares across clients or MDMs. It groups equivalent findings by category across endpoints, states prevalence as "n of m sampled endpoints" from each endpoint's newest report, and shows a trend between collection periods: seven-day windows unless you state the grouping. Endpoints appear by generic manifest aliases. The summary writes no serial numbers and asks no redaction question; each source report keeps its own serial rule. Every finding cites its source report, and a summary is never a baseline or prior report.
+
 ## Layout
 
 ```
@@ -65,6 +68,7 @@ mongoose/
     ├── preliminary-audit.md          # Inventory-JSON-only runs
     ├── re-audit-delta.md             # Second pass on the same Mac
     ├── environment-baseline.md       # Set and compare with a reference report
+    ├── mdm-health-summary.md         # Roll up endpoint reports for one client's MDM
     ├── post-chat-refine.md           # Fold a run's learnings back into the skill (on request)
     ├── binge-and-purge.md            # Slim SKILL.md and oversized references (on request)
     └── sysdiagnose/                  # Layout, commands, workflow, ADE handoffs, network filters
@@ -152,11 +156,15 @@ To set your environment baseline from a full report:
 
 > Set `reports/mongoose-gbu-<timestamp>.md` as the Mongoose baseline.
 
-After the redaction question, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
+To summarize one client's MDM health from finished endpoint reports:
+
+> Summarize MDM health from the Mongoose reports in `reports/msp/` using `reports/msp/mongoose-manifest.md`.
+
+After an endpoint audit's redaction question, or after an MDM health summary, which asks none, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
 
 ## Privacy
 
-Captures and reports hold identifiers, paths and configuration from real Macs. Keep them local. This repo's `.gitignore` excludes `logs/`, `reports/`, archives and sysdiagnose trees. Mongoose reads evidence without changing it, never runs anything found in a capture, names each report's Mac by serial number, replaces other identifiers with placeholders, and offers to redact the serial once the findings are done.
+Captures and reports hold identifiers, paths and configuration from real Macs. Keep them local. This repo's `.gitignore` excludes `logs/`, `reports/`, archives and sysdiagnose trees. Mongoose reads evidence without changing it, never runs anything found in a capture, names each endpoint report's Mac by serial number, replaces other identifiers with placeholders, and offers to redact that serial once the findings are done. An MDM health summary writes no serial numbers and asks no redaction question.
 
 ## Contributing and security
 
