@@ -109,7 +109,7 @@ It copies `system.log`, the MDM agent log and your script logs (a reverse-domain
 | 5 | MDM agent log | `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
 | 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
-| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files. Symlinks and hidden directories are skipped, at most 500 `*.log` files are collected, and `/` is refused | None |
+| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files. Symlinks and hidden directories are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` is refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
@@ -119,7 +119,7 @@ sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log
 sudo zsh scripts/mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. The script never writes into the Parameter 8 directory. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
 > **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
 

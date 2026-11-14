@@ -6,7 +6,7 @@ description: "Deep audit of MDM policies and custom script deployments on manage
 
 Audit how MDM policies and custom script deployments behave on managed Macs, then write "The Good, The Bad, and The Ugly".
 
-Mongoose runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollect.zsh` or any log-collection policy; no agent or LLM runs on the managed Mac. Primary inputs: `system.log`, `<mdm>.log` (Jamf Pro: `jamf.log`) and script logs: `<rdnn>.log` (for example `/var/log/org.churchofjesuschrist.log`), the default when present, or a per-script directory the Mac Admin names, `<script-log-dir>`. Optional: `install.log`, inventory JSON, sysdiagnose, `Terminal Saved Output*.txt`, a prior report.
+Mongoose runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollect.zsh` or any log-collection policy; no agent or LLM runs on the managed Mac. Primary inputs: `system.log`, `<mdm>.log` (Jamf Pro: `jamf.log`) and script logs: `<rdnn>.log` (for example `/var/log/com.example.it.log`), the default when present, or a per-script directory the Mac Admin names, `<script-log-dir>`. Optional: `install.log`, inventory JSON, sysdiagnose, `Terminal Saved Output*.txt`, a prior report.
 
 ## Core Invariants
 
