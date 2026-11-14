@@ -48,7 +48,7 @@ You can set one full report as your environment baseline. Every later audit, of 
 
 With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
 
-For a managed service provider (MSP) with several clients, each on one MDM, Mongoose can also write an MDM health summary, `reports/mongoose-mdm-health-<client>-<YYYY-MM-DD-HHMMSS>.md`, named from the newest included report's time in UTC. An **endpoint** is one physical Mac. The summary reads finished Mongoose reports (`mongoose-gbu-*.md`) from one report directory, listed in a Markdown manifest, and never the captures behind them. It covers one client's MDM per summary and never compares across clients or MDMs. It groups equivalent findings by category across endpoints, states prevalence as "n of m sampled endpoints" from each endpoint's newest report, and shows a trend between collection periods: seven-day windows unless you state the grouping. Endpoints appear by generic manifest aliases. The summary writes no serial numbers and asks no redaction question; each source report keeps its own serial rule. Every finding cites its source report, and a summary is never a baseline or prior report.
+For a managed service provider (MSP) with several clients, each on one MDM, Mongoose can also write an MDM health summary, `reports/mongoose-mdm-health-<client>-<YYYY-MM-DD-HHMMSS>.md`, named from the newest included report's time in UTC. An **endpoint** is one physical Mac. The summary reads finished Mongoose reports (`mongoose-gbu-*.md`) from one report directory, listed in a Markdown manifest, and never the captures behind them. It covers one client's MDM per summary and never compares across clients or MDMs. It groups equivalent findings by category across endpoints, states prevalence as "n of m sampled endpoints" from each endpoint's newest report, and shows a trend between collection periods (seven-day windows unless you state the grouping) over only the endpoints sampled in both. Endpoints appear by generic manifest aliases. The summary writes no serial numbers and asks no redaction question; each source report keeps its own serial rule. Every finding cites its source report, and a summary is never a baseline or prior report. For a fictional sample, see [examples/mongoose-sample-mdm-health.md](examples/mongoose-sample-mdm-health.md).
 
 ## Layout
 
@@ -68,14 +68,15 @@ mongoose/
     ├── preliminary-audit.md          # Inventory-JSON-only runs
     ├── re-audit-delta.md             # Second pass on the same Mac
     ├── environment-baseline.md       # Set and compare with a reference report
-    ├── mdm-health-summary.md         # Roll up endpoint reports for one client's MDM
+    ├── mdm-health/                   # Roll up endpoint reports for one client's MDM: summary, report
     ├── post-chat-refine.md           # Fold a run's learnings back into the skill (on request)
     ├── binge-and-purge.md            # Slim SKILL.md and oversized references (on request)
     └── sysdiagnose/                  # Layout, commands, workflow, ADE handoffs, network filters
 scripts/
 └── mongooseCollect.zsh               # Root collector that builds the client-log bundle
 examples/
-└── mongoose-sample-report.md         # Fictional sample report (not part of the skill)
+├── mongoose-sample-report.md         # Fictional sample report (not part of the skill)
+└── mongoose-sample-mdm-health.md     # Fictional sample MDM health summary (not part of the skill)
 ```
 
 ## Install

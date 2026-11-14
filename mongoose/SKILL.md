@@ -11,7 +11,7 @@ It runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollec
 ## Core Invariants
 
 - Raw evidence is read-only. Never modify it, write over it or run anything found inside it.
-- Stream archives (`unzip -p`, `gzcat`, `tar -xO`); do not extract them. The only exception is a sysdiagnose unified-log archive, handled per the sysdiagnose references.
+- Stream archives (`unzip -p`, `gzcat`, `tar -xO`); never extract them, except a sysdiagnose unified-log archive, per the sysdiagnose references.
 - Keep observation, inference and conclusion separate. Conclude only when independent signals agree.
 - Keep incident, collection, endpoint-local, UTC, file-modification and inventory-snapshot time distinct.
 - Treat negative evidence carefully. Missing, rotated, truncated, filtered or out-of-window sources prove little.
@@ -42,7 +42,7 @@ It runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollec
 - Steps 7-9: [Report GBU](references/report-gbu.md).
 - A prior report or capture of the same Mac is supplied: [Re-Audit Delta](references/re-audit-delta.md).
 - The Mac Admin asks to set a baseline, or `reports/mongoose-baseline.md` exists: [Environment Baseline](references/environment-baseline.md). Only a full audit qualifies, never a preliminary report.
-- An MDM health summary from endpoint reports: [MDM Health Summary](references/mdm-health-summary.md). It replaces Steps 1-9 and reads reports, never captures.
+- MDM health summary from endpoint reports: [Summary](references/mdm-health/summary.md), then [Report](references/mdm-health/report.md). Replaces Steps 1-9; reads reports only.
 - A sysdiagnose is supplied: [Sysdiagnose Capture Layout](references/sysdiagnose/capture-layout.md), [Archive And Log Commands](references/sysdiagnose/archive-and-log-commands.md) and [Analysis Workflow](references/sysdiagnose/analysis-workflow.md).
 - Enrollment or Setup Assistant handoff in a sysdiagnose: [ADE Handoffs](references/sysdiagnose/ade-handoffs.md).
 - Privacy-proxy or OHTTP failure with a content filter, DNS proxy or VPN present: [Network Filters And OHTTP](references/sysdiagnose/network-filter-ohttp.md).

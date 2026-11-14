@@ -50,7 +50,7 @@ Captures may contain usernames, hostnames, serial and inventory identifiers, IP 
 
 ### Placeholders
 
-Report identity is the one exception. Endpoint reports keep the Mac's serial number by default, so Mac Admins know which Mac generated each report. An MDM health summary never writes a serial ([MDM Health Summary](mdm-health-summary.md#serials)). Every other value below becomes its placeholder. Use `<serial>` in examples, and in a report once the user chooses redaction at the prompt in [Report: The Good, The Bad, And The Ugly](report-gbu.md#redaction-prompt).
+Report identity is the one exception. Endpoint reports keep the Mac's serial number by default, so Mac Admins know which Mac generated each report. An MDM health summary never writes a serial ([MDM Health Summary](mdm-health/summary.md#serials)). Every other value below becomes its placeholder. Use `<serial>` in examples, and in a report once the user chooses redaction at the prompt in [Report: The Good, The Bad, And The Ugly](report-gbu.md#redaction-prompt).
 
 | Value | Placeholder |
 |---|---|
