@@ -2,7 +2,7 @@
 
 ## Version History
 
-### Unreleased
+### 0.0.2 (14-Nov-2026)
 
 - Add a fictional sample report, `examples/mongoose-sample-report.md`
 - Skill: MDM health summary (`references/mdm-health/`) that rolls up finished endpoint reports for one client's MDM from a manifest: validated generic aliases, sanitized MDM and Notes text, one client per run, report paths confined to the report directory, manifest and report hashes before reading, report time from each report's named collection source, default seven-day periods, prevalence from each endpoint's newest report with a stated rule for which endpoints could observe each category, and trend statuses over endpoints sampled in both periods only; never across clients or MDMs, never writes serials, and asks no redaction question (issue #2)
