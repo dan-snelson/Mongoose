@@ -59,6 +59,8 @@
 #       Parameter 5 is trimmed of leading and trailing whitespace; a relative value that looks
 #       like a path (starts with ~ or ., or ends in .log or .log.<n>, with no predicate operator)
 #       is rejected, since file paths must be absolute
+#       A Unified Logging export's manifest source shell-quotes the predicate, so it pastes back
+#       as a working command even when the predicate holds single quotes
 #
 ####################################################################################################
 
@@ -504,7 +506,9 @@ function collectUnifiedLog() {
     local logLabel="${3}"
     local sourceClass="${4}"
     local memberName destinationFile
-    local displaySource="log show --info --predicate '${logPredicate}' --last ${unifiedLogWindow} --style compact"
+    # Shell-quote the predicate (q+), so the manifest source pastes back as a working command
+    # even when the predicate holds single quotes
+    local displaySource="log show --info --predicate ${(q+)logPredicate} --last ${unifiedLogWindow} --style compact"
 
     uniqueMemberName "${memberSuffix}"
     memberName="${REPLY}"
