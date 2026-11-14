@@ -50,7 +50,7 @@ Captures may contain usernames, hostnames, serial and inventory identifiers, IP 
 
 ### Placeholders
 
-Report identity is the one exception. Reports keep the Mac's serial number by default, so Mac Admins know which Mac generated each report. Every other value below becomes its placeholder. Use `<serial>` in examples, and in a report once the user chooses redaction at the prompt in [Report: The Good, The Bad, And The Ugly](report-gbu.md#redaction-prompt).
+Report identity is the one exception. Endpoint reports keep the Mac's serial number by default, so Mac Admins know which Mac generated each report. An MDM health summary never writes a serial ([MDM Health Summary](mdm-health/summary.md#serials)). Every other value below becomes its placeholder. Use `<serial>` in examples, and in a report once the user chooses redaction at the prompt in [Report: The Good, The Bad, And The Ugly](report-gbu.md#redaction-prompt).
 
 | Value | Placeholder |
 |---|---|
@@ -110,7 +110,7 @@ For any vendor capture archive, such as a sysdiagnose or another vendor's diagno
 ## Reporting Principles
 
 - Sanitize every report meant for Git, tickets, chat, email or external sharing. Replace case-specific identifiers while keeping enough context for technical review.
-- The serial number stays unless the user redacts it at the redaction prompt. Recommend redaction before a report leaves the team that manages the Mac.
+- An endpoint report's serial number stays unless the user redacts it at the redaction prompt. Recommend redaction before a report leaves the team that manages the Mac.
 - When one finding goes to several audiences (platform vendor, security vendor, internal security team), keep one evidence set and change only the framing and the asks.
 - For mixed captures, keep the GBU structure. Fold sysdiagnose evidence into the timeline, the findings and the cross-cutting observations.
 - Frame every configuration or endpoint change as a recommendation for the owning team. Distinguish recommendation from completed work.

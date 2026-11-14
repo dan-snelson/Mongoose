@@ -10,6 +10,7 @@ To compare a different Mac with the environment's reference report, use [Environ
 - Record each capture's SHA-256 before analysis. Re-check at the end and report both in the Captures table.
 - Confirm every capture names the same serial number. A mismatch means a different Mac: stop and ask. If the prior report redacted the serial, confirm it from the prior capture instead.
 - A preliminary report from [Preliminary Audit](preliminary-audit.md) is a valid prior. Its inventory JSON is the prior capture, and each item it marked Not observable becomes a re-test against the new logs. It is never a valid environment baseline.
+- An MDM health summary is never a valid prior: it holds no capture and no serial.
 
 ## 2. Re-Test, Do Not Copy
 

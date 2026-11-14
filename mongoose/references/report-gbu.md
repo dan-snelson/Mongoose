@@ -43,7 +43,7 @@ print -r -- "mongoose @ $skill"
 
 1. **Header.** Scope. Mac: serial number with its source citation, plus model and OS when the evidence states them; if no source states a serial, say so here and under Limitations. Evidence window: start and end with their original offsets, plus duration from first boot. Baseline, when one is set: report file, set date and SHA-256 prefix. Prepared time, generating model and sanitization statement, per [Provenance](#provenance). Label legend.
 2. **Evidence and method.**
-   - Captures table: name, class (prior or new), collection or snapshot time, integrity check, SHA-256 prefix.
+   - Captures table: name, class (prior or new), collection or snapshot time with its offset, integrity check, SHA-256 prefix.
    - Members table: member, lines, notes (truncated tail, rotated, missing). State the script-log layout: shared `<rdnn>.log`, per-script files under `<script-log-dir>`, or both.
    - Handling: hashes before and after, nothing executed, streamed not extracted. Name any extraction and where it went.
    - Skills applied: `mongoose @ <short-sha>`, per [Provenance](#provenance), and the references used.
