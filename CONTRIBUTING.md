@@ -31,7 +31,7 @@ The maintained skill surface is [mongoose/SKILL.md](mongoose/SKILL.md) and the f
 
 Mongoose uses Jamf Pro as its worked example and never guesses another MDM's log paths or formats. To add support for another MDM, open a feature request or PR with these minimum inputs, all sanitized:
 
-- The vendor-documented path of the MDM agent log, with a link to that documentation.
+- The vendor-documented path of the MDM agent log, with a link to that documentation. For an agent that writes no log file, give instead the Unified Logging predicate (its process or subsystem) and a sanitized `log show` excerpt that it matches.
 - A short agent-log snippet that shows the timestamp format, a policy or command name, and the exit status or result.
 - The shape of the MDM's inventory export, as key paths only, naming the key that holds the Mac's serial number.
 - How the agent log records time zone and UTC offset, if known.
