@@ -13,6 +13,12 @@
 #   collection manifest (collection time with offset, macOS build, boot time, serial number,
 #   and per-member size, modification time, SHA-256 and source path).
 #
+#   The MDM agent log (Parameter 5) is a file path, or a Unified Logging predicate exported with
+#   log show. Left empty, the MDM vendor is detected from the enrollment profile: Jamf Pro and
+#   undetected Macs use /var/log/jamf.log; a recognized vendor whose agent log source is not
+#   known is recorded as missing (set Parameter 5). The enrollment server address is never
+#   printed, logged or written to the manifest.
+#
 #   Transferring the .zip is out of scope; the archive stays in the output directory.
 #   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
 #
@@ -20,6 +26,8 @@
 #       sudo zsh mongooseCollect.zsh / '' '' /var/log/com.example.it.log
 #   or, with one log per script under a directory (Parameter 8):
 #       sudo zsh mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
+#   or, with an MDM agent that logs only to Unified Logging (Parameter 5 as a predicate):
+#       sudo zsh mongooseCollect.zsh / '' '' /var/log/com.example.it.log 'process == "<mdm-agent-process>"'
 #
 ####################################################################################################
 #
@@ -34,6 +42,16 @@
 #       *.log and rotated files combined); never written: a Parameter 4 log under it is collected
 #       but not appended to, and an output directory at or under it is refused
 #       Rotated siblings of every log are limited to <log>.<n>, <log>.<n>.gz and <log>.<n>.bz2
+#
+#   Version 0.0.3, 14-Nov-2026, Dan K. Snelson (@dan-snelson)
+#       Parameter 5 accepts a Unified Logging predicate as well as a file path; the predicate is
+#       exported with log show (Parameter 7 window) as the required MDM agent log, and an export
+#       with no entries is recorded as missing (issue #5)
+#       Parameter 5 empty: the MDM vendor is detected from the enrollment profile (ported from
+#       Mac Health Check); Jamf Pro and undetected Macs use /var/log/jamf.log, and a recognized
+#       vendor with no known agent log source is recorded as missing; the enrollment server
+#       address is never printed, logged or written to the manifest
+#       Parameter 7 renamed "Unified Logging window"; it applies to both Unified Logging exports
 #
 ####################################################################################################
 
@@ -55,7 +73,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="0.0.2"
+scriptVersion="0.0.3"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -84,15 +102,26 @@ selfServicePlusVersion=""
 # Parameter 4: Organization's reverse-domain script log (for example, /var/log/com.example.it.log)
 scriptLog="${4:-""}"
 
-# Parameter 5: MDM agent log
-mdmLog="${5:-"/var/log/jamf.log"}"
+# Parameter 5: MDM agent log: an absolute file path (starts with /) or a Unified Logging predicate;
+# empty: detected from the enrollment profile (see detectMdmVendor and the MDM agent log pre-flight)
+mdmLogParam="${5:-""}"
+mdmLogDefault="/var/log/jamf.log"           # Jamf Pro, and the fallback when no vendor is detected
+mdmLogPredicateMaxLength=1024               # longest Parameter 5 predicate accepted
+mdmVendor=""                                # set by detectMdmVendor (vendor name only)
+mdmVendorReason=""                          # set by detectMdmVendor when no vendor is recognized
+mdmVendorStatus="not checked (Parameter 5 set)"
+mdmLogSource=""                             # set in pre-flight: file, predicate, unknown or rejected
+mdmLogFile=""
+mdmLogPredicate=""
+mdmLogRejectReason=""
 
 # Parameter 6: Output directory
 outputDir="${6:-"/var/tmp"}"
 [[ "${outputDir}" != "/" ]] && outputDir="${outputDir%/}"
 
-# Parameter 7: Self Service+ log window, as passed to `log show --last` (for example, 1h, 1d or 7d)
-selfServicePlusWindow="${7:-"36h"}"
+# Parameter 7: Unified Logging window (Self Service+ and a Parameter 5 predicate), as passed to
+# `log show --last` (for example, 1h, 1d or 7d)
+unifiedLogWindow="${7:-"36h"}"
 
 # Parameter 8: Per-script log directory, collected recursively (for example, /var/log/managed)
 scriptLogDir="${8:-""}"
@@ -386,30 +415,109 @@ function findSelfServicePlus() {
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Export Self Service+ Unified Logging entries into the staging directory
+# Detect the MDM vendor from the enrollment profile; sets mdmVendor (vendor name only) and returns
+# 0, or sets mdmVendorReason and returns 1
+#   Ported from Mac Health Check's MDM vendor detection (thanks, @TechTrekkie!): read
+#   `profiles list -output stdout-xml` once, take the ServerURL of the com.apple.mdm payload
+#   (its PayloadContent sorts before its PayloadType), reduce it to a lowercase host and match
+#   the host on vendor substrings. The ServerURL and host are <mdm-url>: they stay in local
+#   variables and are never printed, logged or written to the manifest.
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function detectMdmVendor() {
+    local profilesXML serverURL serverHost
+
+    mdmVendor=""
+    mdmVendorReason=""
+
+    if ! profilesXML=$( profiles list -output stdout-xml 2>/dev/null ); then
+        mdmVendorReason="profiles list failed"
+        return 1
+    fi
+
+    # The ServerURL seen since the last PayloadType, printed only when that PayloadType is
+    # com.apple.mdm; a ServerURL in any other payload is discarded
+    serverURL=$( print -r -- "${profilesXML}" | awk '
+        /<key>ServerURL<\/key>/   { wantURL = 1; if ($0 !~ /<string>/) next }
+        wantURL && /<string>/     { url = $0; sub(/.*<string>/, "", url); sub(/<\/string>.*/, "", url); wantURL = 0; next }
+        /<key>PayloadType<\/key>/ { wantType = 1; if ($0 !~ /<string>/) next }
+        wantType && /<string>/    { wantType = 0; if ($0 ~ /<string>com\.apple\.mdm<\/string>/ && url != "") { print url; exit } url = "" }
+    ' )
+
+    if [[ -z "${serverURL}" ]]; then
+        mdmVendorReason="no MDM enrollment profile found"
+        return 1
+    fi
+
+    # Host only: drop the scheme, then any path, query or fragment, user info and port
+    serverHost="${serverURL#*://}"
+    serverHost="${serverHost%%[/?#]*}"
+    serverHost="${serverHost##*@}"
+    serverHost="${(L)serverHost%%:*}"
+
+    case "${serverHost}" in
+        *addigy* )          mdmVendor="Addigy" ;;
+        *filewave* )        mdmVendor="FileWave" ;;
+        *fleet* )           mdmVendor="Fleet" ;;
+        *jamf* | *jss* )    mdmVendor="Jamf Pro" ;;
+        *jumpcloud* )       mdmVendor="JumpCloud" ;;
+        *kandji* )          mdmVendor="Kandji" ;;
+        *microsoft* )       mdmVendor="Microsoft Intune" ;;
+        *mosyle* )          mdmVendor="Mosyle" ;;
+        * )
+            mdmVendorReason="enrollment server matches no known vendor"
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Export Unified Logging entries into the staging directory
+#   ${1}  predicate, passed to log show as one argument (never evaluated by the shell)
+#   ${2}  member suffix (see uniqueMemberName)
+#   ${3}  label for log lines and the missing-log entry (for example, "Self Service+")
+#   ${4}  "required" or "optional"; a required export with no entries in the window is kept
+#         but also recorded as missing, since a mistyped predicate matches nothing
 #   (`log` is a Zsh builtin, so call /usr/bin/log by path)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-function collectSelfServicePlusLog() {
+function collectUnifiedLog() {
+    local logPredicate="${1}"
+    local memberSuffix="${2}"
+    local logLabel="${3}"
+    local sourceClass="${4}"
     local memberName destinationFile
-    local logPredicate="subsystem BEGINSWITH \"${selfServicePlusBundleID}\""
-    local displaySource="log show --info --predicate '${logPredicate}' --last ${selfServicePlusWindow} --style compact"
+    local displaySource="log show --info --predicate '${logPredicate}' --last ${unifiedLogWindow} --style compact"
 
-    uniqueMemberName "selfserviceplus.log"
+    uniqueMemberName "${memberSuffix}"
     memberName="${REPLY}"
     destinationFile="${stagingDir}/${memberName}"
 
-    if /usr/bin/log show --info --predicate "${logPredicate}" --last "${selfServicePlusWindow}" --style compact > "${destinationFile}"; then
+    if /usr/bin/log show --info --predicate "${logPredicate}" --last "${unifiedLogWindow}" --style compact > "${destinationFile}"; then
         chmod 644 "${destinationFile}"
         collectedMembers+=( "${memberName}" )
         collectedSources+=( "${displaySource}" )
-        info "Collected Self Service+ entries (last ${selfServicePlusWindow}) as ${memberName}"
+        info "Collected ${logLabel} entries (last ${unifiedLogWindow}) as ${memberName}"
+
+        # Compact style starts each entry with a date; a header-only export matched nothing
+        if [[ "${sourceClass}" == "required" ]] && ! grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' "${destinationFile}"; then
+            warning "${logLabel} export matched no entries in the last ${unifiedLogWindow}; check the predicate"
+            missingRequired+=( "${logLabel} (log show matched no entries in the last ${unifiedLogWindow})" )
+        fi
         return 0
     fi
 
     rm -f "${destinationFile}"
-    warning "Unable to export Self Service+ entries from Unified Logging"
-    absentOptional+=( "${displaySource} (export failed)" )
+    warning "Unable to export ${logLabel} entries from Unified Logging"
+    if [[ "${sourceClass}" == "required" ]]; then
+        missingRequired+=( "${displaySource} (export failed)" )
+    else
+        absentOptional+=( "${displaySource} (export failed)" )
+    fi
     return 1
 }
 
@@ -462,8 +570,19 @@ function writeManifest() {
         else
             print -r -- "Script-log files discovered: ${scriptLogDirFiles} (${scriptLogDirLogs} *.log plus rotated)"
         fi
-        print -r -- "MDM agent log (Parameter 5): ${mdmLog}"
-        print -r -- "Self Service+ log window (Parameter 7): ${selfServicePlusWindow}"
+        if [[ "${mdmLogSource}" == "rejected" ]]; then
+            print -r -- "MDM agent log (Parameter 5): predicate not shown (rejected: ${mdmLogRejectReason})"
+        else
+            print -r -- "MDM agent log (Parameter 5): ${mdmLogParam:-not set}"
+        fi
+        print -r -- "MDM vendor: ${mdmVendorStatus}"
+        case "${mdmLogSource}" in
+            file )      print -r -- "MDM agent log source: file ${mdmLogFile}" ;;
+            predicate ) print -r -- "MDM agent log source: Unified Logging predicate" ;;
+            unknown )   print -r -- "MDM agent log source: not known (set Parameter 5)" ;;
+            rejected )  print -r -- "MDM agent log source: none (Parameter 5 rejected)" ;;
+        esac
+        print -r -- "Unified Logging window (Parameter 7): ${unifiedLogWindow}"
         if [[ -n "${selfServicePlusApp}" ]]; then
             print -r -- "Self Service+: ${selfServicePlusApp} (${selfServicePlusVersion:-unknown version})"
         else
@@ -472,8 +591,9 @@ function writeManifest() {
         print -r -- ""
         print -r -- "Logs were copied while live; a truncated last line is a collection artifact."
         print -r -- "Modified is the source file's modification time, kept by cp -p."
-        print -r -- "Self Service+ entries are exported with log show: Modified is export time, and"
-        print -r -- "compact style prints local time without a UTC offset (see Time zone)."
+        print -r -- "Unified Logging exports (Self Service+, and the MDM agent log when Parameter 5 is a"
+        print -r -- "predicate) are made with log show; source gives the command: Modified is export time,"
+        print -r -- "and compact style prints local time without a UTC offset (see Time zone)."
         print -r -- "SHA-256 is of the member as archived."
         print -r -- "Parameter 8 members are named by their path under that directory, with / as _;"
         print -r -- "source gives each member's original path."
@@ -576,12 +696,76 @@ fi
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Pre-flight Check: Self Service+ log window
+# Pre-flight Check: Unified Logging window (Parameter 7)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-if [[ "${selfServicePlusWindow}" != <->[mhd] ]]; then
-    preFlight "Parameter 7 '${selfServicePlusWindow}' is not <number>m, h or d; using 36h"
-    selfServicePlusWindow="36h"
+if [[ "${unifiedLogWindow}" != <->[mhd] ]]; then
+    preFlight "Parameter 7 '${unifiedLogWindow}' is not <number>m, h or d; using 36h"
+    unifiedLogWindow="36h"
+fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: MDM agent log (Parameter 5)
+#   Set: a value starting with / is a file; any other value is a Unified Logging predicate,
+#   rejected when it holds control characters or is longer than mdmLogPredicateMaxLength
+#   (log show itself rejects bad syntax). Empty: detect the MDM vendor (see detectMdmVendor);
+#   Jamf Pro and undetected Macs use mdmLogDefault. The requirement is judged during collection.
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ -n "${mdmLogParam}" ]]; then
+    if [[ "${mdmLogParam}" == /* ]]; then
+        mdmLogSource="file"
+        mdmLogFile="${mdmLogParam}"
+        preFlight "Parameter 5 is a file path; collecting MDM agent log '${mdmLogFile}'"
+    elif [[ "${mdmLogParam}" == *[[:cntrl:]]* ]]; then
+        mdmLogSource="rejected"
+        mdmLogRejectReason="predicate contains control characters"
+    elif (( ${#mdmLogParam} > mdmLogPredicateMaxLength )); then
+        mdmLogSource="rejected"
+        mdmLogRejectReason="predicate is longer than ${mdmLogPredicateMaxLength} characters"
+    else
+        mdmLogSource="predicate"
+        mdmLogPredicate="${mdmLogParam}"
+        preFlight "Parameter 5 is a Unified Logging predicate; exporting the MDM agent log with log show (last ${unifiedLogWindow})"
+    fi
+    if [[ "${mdmLogSource}" == "rejected" ]]; then
+        warning "Parameter 5 rejected: ${mdmLogRejectReason}; skipping the MDM agent log"
+    fi
+else
+    if detectMdmVendor; then
+        mdmVendorStatus="${mdmVendor} (enrollment profile)"
+        preFlight "Parameter 5 not set; detected MDM vendor ${mdmVendor} from the enrollment profile"
+
+        # Agent log source per vendor; empty means not known (no guessed paths or predicates)
+        case "${mdmVendor}" in
+            "Jamf Pro" )
+                mdmLogFile="${mdmLogDefault}"
+                ;;
+            "Mosyle" )
+                # Logs only to Unified Logging; confirm the process or subsystem from a sanitized
+                # log show sample before filling in mdmLogPredicate (issue #5)
+                mdmLogPredicate=""
+                ;;
+        esac
+
+        if [[ -n "${mdmLogFile}" ]]; then
+            mdmLogSource="file"
+            preFlight "Collecting ${mdmVendor} agent log '${mdmLogFile}'"
+        elif [[ -n "${mdmLogPredicate}" ]]; then
+            mdmLogSource="predicate"
+            preFlight "Exporting the ${mdmVendor} agent log with log show (last ${unifiedLogWindow})"
+        else
+            mdmLogSource="unknown"
+            warning "${mdmVendor} detected; its agent log source is not known; set Parameter 5 to a file path or Unified Logging predicate"
+        fi
+    else
+        mdmVendorStatus="not detected"
+        mdmLogSource="file"
+        mdmLogFile="${mdmLogDefault}"
+        preFlight "Parameter 5 not set; MDM vendor not detected (${mdmVendorReason}); collecting '${mdmLogFile}'"
+    fi
 fi
 
 
@@ -633,8 +817,22 @@ notice "Gathering required logs …"
 collectFile "/var/log/system.log" "system.log" "required"
 collectRotated "/var/log/system.log"
 
-collectFile "${mdmLog}" "${mdmLog:t}" "required"
-collectRotated "${mdmLog}"
+# MDM agent log: a file with its rotated siblings, or a Unified Logging export (see pre-flight)
+case "${mdmLogSource}" in
+    file )
+        collectFile "${mdmLogFile}" "${mdmLogFile:t}" "required"
+        collectRotated "${mdmLogFile}"
+        ;;
+    predicate )
+        collectUnifiedLog "${mdmLogPredicate}" "mdm-agent.log" "MDM agent log" "required"
+        ;;
+    unknown )
+        missingRequired+=( "MDM agent log (${mdmVendor} detected; agent log source not known; set Parameter 5 to a file path or Unified Logging predicate)" )
+        ;;
+    rejected )
+        missingRequired+=( "MDM agent log (Parameter 5 rejected: ${mdmLogRejectReason})" )
+        ;;
+esac
 
 # Parameters 4 and 8 are each collected as optional; the requirement is met when either yields
 # at least one file, and a single missingRequired entry (naming both, with any Parameter 8
@@ -687,7 +885,7 @@ collectFile "/var/log/defendpoint/audit.log" "defendpoint.audit.log" "optional"
 # Jamf Pro Self Service+ (Unified Logging; system-wide, so no console user is needed)
 if findSelfServicePlus; then
     info "Found Self Service+ ${selfServicePlusVersion:-(unknown version)} at ${selfServicePlusApp}"
-    collectSelfServicePlusLog
+    collectUnifiedLog "subsystem BEGINSWITH \"${selfServicePlusBundleID}\"" "selfserviceplus.log" "Self Service+" "optional"
 else
     info "Self Service+ not installed; skipped Self Service+ logs"
     absentOptional+=( "Self Service+ logs (no app with bundle ID ${selfServicePlusBundleID} in /Applications)" )

@@ -12,6 +12,8 @@
 - Skill: read organization script logs from a per-script log directory the Mac Admin names (`<script-log-dir>`), as well as from `<rdnn>.log`, and state that Mongoose runs off the Mac on any collected client-log bundle, including nested folders (issue #4)
 - `mongooseCollect.zsh` 0.0.2: add Parameter 8, a per-script log directory collected recursively (plain `*.log` files and their rotated siblings; symlinks and hidden directories skipped; `/` refused; 500-file cap on `*.log` and rotated files combined; never written, so a Parameter 4 log inside it is not appended to and an output directory inside it is refused), with flattened member names and manifest lines for the directory and the files discovered (issue #4). A rejected Parameter 8 no longer marks the bundle incomplete when Parameter 4 yields a log, and rotated siblings of every log are limited to `<log>.<n>`, `<log>.<n>.gz` and `<log>.<n>.bz2`
 
+- `mongooseCollect.zsh` 0.0.3: Parameter 5 accepts a Unified Logging predicate as well as a file path, exported with `log show` over the Parameter 7 window as the required MDM agent log (`*-mdm-agent.log`; an export with no entries is recorded as missing). Left empty, it detects the MDM vendor from the enrollment profile without recording the server address: Jamf Pro and undetected Macs use `/var/log/jamf.log`, and a recognized vendor with no known agent log source is recorded as missing. Parameter 7 becomes the Unified Logging window for both exports, and the manifest names the detected vendor and the agent log source (issue #5)
+
 ### 0.0.1 (10-Nov-2026)
 
 - Initial release

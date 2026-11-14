@@ -106,14 +106,14 @@ Run your agent from this checkout. Mongoose writes reports to `reports/` in the 
 
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) builds the client-log bundle on the Mac being audited. Run it as root. It needs no MDM API access and no credentials.
 
-It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
+It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When Parameter 5 is empty, it detects the MDM vendor from the enrollment profile (`profiles list`) and never records the enrollment server address: Jamf Pro and undetected Macs use `/var/log/jamf.log`, and another recognized MDM whose agent log source is not known is recorded as missing, so set Parameter 5 for it. Parameter 5 may also be a Unified Logging predicate for an MDM agent that writes no log file; the script exports its entries with `log show` over the Parameter 7 window, and an export with no entries is recorded as missing. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
 | 4 | Reverse-domain script log, for example `/var/log/com.example.it.log` | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
-| 5 | MDM agent log | `/var/log/jamf.log` |
+| 5 | MDM agent log: an absolute file path, or a Unified Logging predicate, such as `process == "<mdm-agent-process>"`, at most 1,024 characters with no control characters | Empty: detected from the enrollment profile; Jamf Pro and undetected Macs use `/var/log/jamf.log` |
 | 6 | Output directory | `/var/tmp` |
-| 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
+| 7 | Unified Logging window for Self Service+ and a Parameter 5 predicate, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
 | 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files. Symlinks and hidden directories are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` is refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
 
 ```zsh
@@ -122,9 +122,12 @@ sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log
 
 # One log per script under a directory (Parameter 8).
 sudo zsh scripts/mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
+
+# An MDM agent that logs only to Unified Logging (Parameter 5 as a predicate).
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log 'process == "<mdm-agent-process>"'
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. A Parameter 5 predicate export is named `<serial>-<YYYY-MM-DD-HHMMSS>-mdm-agent.log`, and its manifest `source` is the `log show` command. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
 > **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
 
