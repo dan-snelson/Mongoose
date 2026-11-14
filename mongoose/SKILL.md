@@ -1,12 +1,12 @@
 ---
 name: mongoose
-description: "Deep audit of MDM policies and custom script deployments on managed Macs, run off the Mac on a client-log bundle. Reads system.log, the MDM agent log (such as jamf.log) and the organization's script logs: a reverse-domain log or per-script logs. Optional: install.log, inventory JSON, sysdiagnose. With only an inventory JSON, such as a Jamf Pro Computer Record, writes a preliminary report. Writes an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial and sanitizing other identifiers, with a timeline, per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Compares audits with an environment baseline set from a full report. Summarizes MDM health from endpoint reports. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, client-log bundle, script-log directory, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit, set baseline, MDM health summary, MSP."
+description: "Deep audit of MDM policies and custom script deployments on managed Macs, run off the Mac on a client-log bundle. Reads system.log, the MDM agent log (such as jamf.log) and the organization's script logs: a reverse-domain log or per-script logs. Optional: install.log, inventory export, sysdiagnose. With only an inventory JSON or CSV, such as a Jamf Pro Computer Record, writes a preliminary report. Writes an evidence-cited Markdown report titled The Good, The Bad, and The Ugly, naming the Mac by serial and sanitizing other identifiers, with a timeline, per-script lens, limitations and read-only Zsh follow-ups, then offers to redact the serial. Compares audits with an environment baseline set from a full report. Summarizes MDM health from endpoint reports. Trigger with Mongoose, Good Bad Ugly, GBU audit, MDM policy audit, script deployment audit, client-log bundle, script-log directory, sysdiagnose, Computer Record JSON, preliminary audit, re-audit, delta vs prior audit, set baseline, MDM health summary, MSP."
 ---
 # Mongoose
 
 Audit how MDM policies and script deployments behave on managed Macs, then write "The Good, The Bad, and The Ugly".
 
-It runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollect.zsh` or any log-collection policy; no agent or LLM runs on the Mac. Primary inputs: `system.log`, `<mdm>.log` (Jamf Pro: `jamf.log`) and script logs: `<rdnn>.log`, the default when present, or a per-script directory the Mac Admin names, `<script-log-dir>`. Optional: `install.log`, inventory JSON, sysdiagnose, `Terminal Saved Output*.txt`, a prior report.
+It runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollect.zsh` or any log-collection policy; no agent or LLM runs on the Mac. Primary inputs: `system.log`, `<mdm>.log` (Jamf Pro: `jamf.log`) and script logs: `<rdnn>.log`, the default when present, or a per-script directory the Mac Admin names, `<script-log-dir>`. Optional: `install.log`, inventory export, sysdiagnose, `Terminal Saved Output*.txt`, a prior report.
 
 ## Core Invariants
 
@@ -30,18 +30,18 @@ It runs off the Mac, on a client-log bundle (ZIP or folder) from `mongooseCollec
 7. **GBU report.** Write the report; add the delta vs prior audit on a second pass, and the delta vs baseline when one is set.
 8. **Follow-up commands.** One round of grouped, read-only, paste-ready Zsh.
 9. **Redaction prompt.** Once findings are complete, ask whether to redact the serial number. If yes, replace it with `<serial>` throughout the report; confirm no copy remains.
-10. **Offer post-chat-refine.** Only after the step 9 question is answered, end the closing reply with a one-line offer to fold this run's durable learnings into the skill; never ask both in one message. It goes in the reply, never the report. Once declined, don't offer again this session.
+10. **Offer post-chat-refine.** Only once step 9 is answered, end the closing reply, never the report, with a one-line offer to fold this run's durable learnings into the skill; never ask both in one message. Once declined, don't offer again this session.
 
 ## Load When
 
 - Always: [Evidence Safety](references/evidence-safety.md) for citations, privacy, placeholders and follow-up commands.
-- Only an MDM inventory JSON is supplied: [Preliminary Audit](references/preliminary-audit.md) at every step. It overrides identity, time, lens and report rules.
+- Only an MDM inventory export is supplied: [Exports](references/inventory-exports.md), then [Preliminary Audit](references/preliminary-audit.md) at every step. It overrides identity, time, lens and report rules.
 - Steps 1-2: [Capture Layout](references/capture-layout.md) and [Inventory Commands](references/inventory-commands.md). Step 3, and any cross-source correlation: [Time Context](references/time-context.md).
 - Step 4: [Script-Deployment Playbooks](references/script-deployment-playbooks.md).
 - Before classifying any finding as Good, Bad or Ugly: [Interpretation Rules](references/interpretation-rules.md).
 - Steps 7-9: [Report GBU](references/report-gbu.md).
 - A prior report or capture of the same Mac is supplied: [Re-Audit Delta](references/re-audit-delta.md).
-- The Mac Admin asks to set a baseline, or `reports/mongoose-baseline.md` exists: [Environment Baseline](references/environment-baseline.md). Only a full audit qualifies, never a preliminary report.
+- The Mac Admin asks to set a baseline, or `reports/mongoose-baseline.md` exists: [Environment Baseline](references/environment-baseline.md). Only a full audit qualifies.
 - MDM health summary from endpoint reports: [Summary](references/mdm-health/summary.md), then [Report](references/mdm-health/report.md). Replaces Steps 1-9; reads reports only.
 - A sysdiagnose is supplied: [Sysdiagnose Capture Layout](references/sysdiagnose/capture-layout.md), [Archive And Log Commands](references/sysdiagnose/archive-and-log-commands.md) and [Analysis Workflow](references/sysdiagnose/analysis-workflow.md).
 - Enrollment or Setup Assistant handoff in a sysdiagnose: [ADE Handoffs](references/sysdiagnose/ade-handoffs.md).

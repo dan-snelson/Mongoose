@@ -20,7 +20,7 @@ Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built 
 | `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
 | `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/com.example.it.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
 | `/var/log/install.log` | Optional | Package and software-update activity |
-| MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
+| MDM inventory JSON or CSV export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
 | An environment baseline (`reports/mongoose-baseline.md`) | Optional | Compares each audit with the full report you set as your environment's reference |
@@ -46,7 +46,7 @@ For a fictional sample re-audit that shows every section, see [examples/mongoose
 
 You can set one full report as your environment baseline. Every later audit, of any Mac, then adds a delta vs. baseline and tags each finding In baseline or Off-baseline. The baseline never hides or downgrades a finding. Mongoose stores only a pointer and the report's SHA-256 in `reports/mongoose-baseline.md`, and asks before using a report that has changed since.
 
-With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
+With only an MDM inventory JSON or CSV export, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A CSV or list export that holds several Macs needs the serial of the one to audit. Some MDMs, such as Mosyle, keep policy and script history only in the web console; a sanitized excerpt you supply counts as server-reported status, never as proof the script ran on the Mac. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
 
 For a managed service provider (MSP) with several clients, each on one MDM, Mongoose can also write an MDM health summary, `reports/mongoose-mdm-health-<client>-<YYYY-MM-DD-HHMMSS>.md`, named from the newest included report's time in UTC. An **endpoint** is one physical Mac. The summary reads finished Mongoose reports (`mongoose-gbu-*.md`) from one report directory, listed in a Markdown manifest, and never the captures behind them. It covers one client's MDM per summary and never compares across clients or MDMs. It groups equivalent findings by category across endpoints, states prevalence as "n of m sampled endpoints" from each endpoint's newest report, and shows a trend between collection periods (seven-day windows unless you state the grouping) over only the endpoints sampled in both. Endpoints appear by generic manifest aliases. The summary writes no serial numbers and asks no redaction question; each source report keeps its own serial rule. Every finding cites its source report, and a summary is never a baseline or prior report. For a fictional sample, see [examples/mongoose-sample-mdm-health.md](examples/mongoose-sample-mdm-health.md).
 
@@ -61,11 +61,12 @@ mongoose/
     ├── evidence-safety.md            # Citations, privacy, placeholders, failure modes (always loaded)
     ├── capture-layout.md             # Bundle members and device identity
     ├── inventory-commands.md         # Read-only hashing and streaming commands
+    ├── inventory-exports.md          # Inventory JSON and CSV shapes, multi-device exports, console history
     ├── time-context.md               # Offsets, anchors and normalization
     ├── script-deployment-playbooks.md  # Per-script measurements
     ├── interpretation-rules.md       # Patterns that change a Good, Bad or Ugly call
     ├── report-gbu.md                 # Report file, provenance, order, citation check, redaction
-    ├── preliminary-audit.md          # Inventory-JSON-only runs
+    ├── preliminary-audit.md          # Inventory-export-only runs
     ├── re-audit-delta.md             # Second pass on the same Mac
     ├── environment-baseline.md       # Set and compare with a reference report
     ├── mdm-health/                   # Roll up endpoint reports for one client's MDM: summary, report
@@ -151,6 +152,10 @@ When each script writes its own log:
 With only a Computer Record JSON:
 
 > Run a preliminary Mongoose audit on `logs/<computer-id>_response_<epoch-ms>.json`.
+
+With a CSV export that lists several Macs:
+
+> Run a preliminary Mongoose audit on `logs/<inventory-export>.csv` for serial `<serial>`.
 
 For a second pass:
 
