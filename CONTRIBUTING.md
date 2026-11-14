@@ -6,7 +6,7 @@ You are welcome to discuss ideas, bugs, and improvements in the [Issues](https:/
 
 ## Pull Requests
 
-Submit Pull Requests against the `development` branch unless requested otherwise. The `main` branch is the current stable line. Mongoose does not publish tagged releases yet; [CHANGELOG.md](CHANGELOG.md) records changes by date.
+Submit Pull Requests against the `development` branch unless requested otherwise. The `main` branch is the current stable line. Releases are tagged (starting with `v0.0.1`), and [CHANGELOG.md](CHANGELOG.md) records them by version and date.
 
 When submitting a Pull Request:
 

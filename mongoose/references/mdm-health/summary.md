@@ -69,6 +69,7 @@ fi
 
 # 5. At the end; expect OK per line.
 shasum -a 256 -c -- "$hashes"
+rm -f -- "$hashes"  # Remove the temporary hash list.
 ```
 
 ## Eligibility And Report Time

@@ -73,7 +73,7 @@ Script extension attributes are the JSON-visible footprint of custom scripts. Th
 
 ## Not Observable From Inventory Alone
 
-State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, script-log content (`<rdnn>.log` or `<script-log-dir>`), boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record. In Mosyle, policy and script history is only in the web console's Commands Activity Log; state it under Limitations and whether an excerpt was supplied.
+State these under Limitations in every preliminary report: policy execution and triggers, script runs, exit codes and duration, script-log content (`<rdnn>.log` or `<script-log-dir>`), boots and shutdowns, `install.log` activity, crashes and unified-log events. In Jamf Pro, policy logs and management history are separate records, not part of the Computer Record. In Mosyle, policy and script history is reported to be only in the web console's Commands Activity Log (community-reported and unverified); state it under Limitations and whether an excerpt was supplied.
 
 ## Commands
 

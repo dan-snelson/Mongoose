@@ -17,7 +17,7 @@ Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built 
 | Input | Required | What it shows |
 |---|---|---|
 | `/var/log/system.log` and rotated `.gz` files | Yes | Boots, shutdowns, launchd and daemon activity |
-| `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
+| `/var/log/<mdm>.log` | Yes | Your MDM agent's log. For an agent that writes no log file, a Unified Logging export (`*-mdm-agent.log`) instead |
 | `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
 | `/var/log/install.log` | Optional | Package and software-update activity |
 | MDM inventory JSON or CSV export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
@@ -109,15 +109,15 @@ Run your agent from this checkout. Mongoose writes reports to `reports/` in the 
 
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) builds the client-log bundle on the Mac being audited. Run it as root. It needs no MDM API access and no credentials.
 
-It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When Parameter 5 is empty, it detects the MDM vendor from the enrollment profile (`profiles list`) and never records the enrollment server address: Jamf Pro and undetected Macs use `/var/log/jamf.log`. Another recognized MDM whose agent log source is not known (Jamf School is matched separately from Jamf Pro) still gets `/var/log/jamf.log` when that file exists, with a warning and a manifest note; otherwise its agent log is recorded as missing, so set Parameter 5 for it. Parameter 5 is trimmed of leading and trailing whitespace. A file path must be absolute: a value such as `jamf.log` or `~/x.log` that looks like a relative path and holds no predicate operator is rejected, never echoed, and recorded as missing. Parameter 5 may also be a Unified Logging predicate for an MDM agent that writes no log file; the script exports its entries with `log show` over the Parameter 7 window, and an export with no entries is recorded as missing. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
+It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When Parameter 5 is empty, it detects the MDM vendor from the enrollment profile (`profiles list`) and never records the enrollment server address: Jamf Pro and undetected Macs use `/var/log/jamf.log`. Another recognized MDM whose agent log source is not known (Jamf School is matched separately from Jamf Pro) still gets `/var/log/jamf.log` when that file exists, with a warning and a manifest note; otherwise its agent log is recorded as missing, so set Parameter 5 for it. Parameter 5 is trimmed of leading and trailing whitespace. A file path must be absolute: a value such as `jamf.log` or `~/x.log` that looks like a relative path and holds no predicate operator is rejected, never echoed, and recorded as missing. Parameter 5 may also be a Unified Logging predicate for an MDM agent that writes no log file; the script exports its entries with `log show` over the Parameter 7 window, and an export with no entries is recorded as missing. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, the detected MDM vendor and the MDM agent log source, and each member's size, modification time, SHA-256 and `source` (its original path, or the `log show` command for a Unified Logging export).
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
-| 5 | MDM agent log: an absolute file path only (starts with `/`), or a Unified Logging predicate, such as `process == "<mdm-agent-process>"`, at most 1,024 characters with no control characters. Leading and trailing whitespace is trimmed. A relative path (starts with `~` or `.`, or ends in `.log` or `.log.<n>`, with no `==`, `!=`, `BEGINSWITH`, `CONTAINS`, `ENDSWITH`, `LIKE`, `MATCHES` or `IN`) is rejected | Empty: detected from the enrollment profile; Jamf Pro and undetected Macs use `/var/log/jamf.log`, as does a recognized MDM with no known agent log source when that file exists |
-| 6 | Output directory | `/var/tmp` |
-| 7 | Unified Logging window for Self Service+ and a Parameter 5 predicate, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
-| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files. Symlinks and hidden directories are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` is refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
+| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`. A value holding control characters is rejected, never echoed, and neither collected nor appended to | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
+| 5 | MDM agent log: an absolute file path only (starts with `/`), or a Unified Logging predicate, such as `process == "<mdm-agent-process>"`, at most 1,024 characters. Leading and trailing whitespace is trimmed. A value holding control characters, file path or predicate, is rejected and never echoed. A relative path (starts with `~` or `.`, or ends in `.log` or `.log.<n>`, with no `==`, `!=`, `BEGINSWITH`, `CONTAINS`, `ENDSWITH`, `LIKE`, `MATCHES` or `IN`) is rejected. Any other relative value is treated as a predicate, so `log show` rejects it, the export is recorded as failed, and the value appears in the manifest as a predicate | Empty: detected from the enrollment profile; Jamf Pro and undetected Macs use `/var/log/jamf.log`, as does a recognized MDM with no known agent log source when that file exists |
+| 6 | Output directory. A value holding control characters stops the script before staging, without being echoed | `/var/tmp` |
+| 7 | Unified Logging window for Self Service+ and a Parameter 5 predicate, as passed to `log show --last`: `<number>m`, `h` or `d`, from `1m` to `30d` (`720h`, `43200m`); any other value falls back to `36h` | `36h` |
+| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files, and the whole tree is listed before the cap applies, so point it only at a script-log directory, never a broad one such as `/Users` or `/Library`. Symlinks, hidden directories and file names holding control characters (counted, never echoed) are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` and a value holding control characters are refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
@@ -132,17 +132,15 @@ sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.lo
 
 The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. A Parameter 5 predicate export is named `<serial>-<YYYY-MM-DD-HHMMSS>-mdm-agent.log`, and its manifest `source` is the `log show` command. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
-On success, the script also prints paste-ready handoff lines with the real archive path. Paste them as the logged-in user, not root, to get a copy you can attach in a chat app:
+On success, the script also prints a paste-ready handoff line with the real archive path. Paste it as the logged-in user, not root, to get a copy you can attach in a chat app:
 
 ```zsh
-sudo cp /var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip ~/Downloads/
-sudo chown "$USER" ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip
-chmod 600 ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip
+( umask 077; sudo cat /var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip > ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip )
 ```
 
-The copy keeps mode `600`, readable only by you. `"$USER"` and `~` expand in your shell, so the script never resolves or logs a username, and it runs none of these lines; they go to stdout only, never to the script log. A Parameter 6 path with spaces is printed shell-quoted. `~/Downloads` is not synced by iCloud Drive's Desktop & Documents Folders, so don't use `~/Desktop` or `~/Documents`.
+`sudo` only reads the archive. The redirection runs as you, under `umask 077`, so root never writes into your home folder, a link planted at the destination gains nothing, and the copy is yours with mode `600`, readable only by you, without `chown` or `chmod`. `~` expands in your shell, so the script never resolves or logs a username, and it runs none of the line; it goes to stdout only, never to the script log. A Parameter 6 path with spaces is printed shell-quoted. `~/Downloads` is not synced by iCloud Drive's Desktop & Documents Folders, so don't use `~/Desktop` or `~/Documents`.
 
-> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture, and so does the `~/Downloads` copy from the handoff lines. Delete both once the archive is attached or moved.
+> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture, and so does the `~/Downloads` copy from the handoff line. Delete both once the archive is attached or moved.
 
 ## Usage
 
@@ -154,7 +152,7 @@ Mongoose activates when a request matches its description. You can also call it 
 | Codex | `$mongoose` or "Run a Mongoose GBU audit …" |
 | Claude desktop app (chat) | Attach the copy, then ask: "Run a Mongoose GBU audit on the attached bundle …" |
 
-In the Claude desktop app (chat): install the skill ([Install](#install)), run the collector on the Mac ([Collect](#collect)), paste the handoff lines it prints, then attach the `~/Downloads` copy.
+In the Claude desktop app (chat): install the skill ([Install](#install)), run the collector on the Mac ([Collect](#collect)), paste the handoff line it prints, then attach the `~/Downloads` copy.
 
 Put captures in the git-ignored `logs/` directory, then ask:
 
@@ -194,7 +192,7 @@ Captures and reports hold identifiers, paths and configuration from real Macs. K
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): pull requests, skill and collector rules, validation.
 - [SECURITY.md](SECURITY.md): report vulnerabilities in Mongoose or `mongooseCollect.zsh` privately.
-- [CHANGELOG.md](CHANGELOG.md): changes by date.
+- [CHANGELOG.md](CHANGELOG.md): changes by version and date.
 
 ## License
 

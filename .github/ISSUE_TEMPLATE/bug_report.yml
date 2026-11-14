@@ -167,9 +167,9 @@ body:
     id: collector-context
     attributes:
       label: Collector context
-      description: For `mongooseCollect.zsh` bugs only. Include how it ran (Jamf Pro policy, another MDM, or locally with `sudo`), the parameters 4-7 you passed (as placeholders), and the macOS version from `sw_vers` on the audited Mac.
+      description: For `mongooseCollect.zsh` bugs only. Include how it ran (Jamf Pro policy, another MDM, or locally with `sudo`), the parameters 4-8 you passed (as placeholders), and the macOS version from `sw_vers` on the audited Mac.
       placeholder: |
-        Example: Jamf Pro policy; Parameter 4 `/var/log/org.churchofjesuschrist.log`, Parameters 5-7 default; macOS 26.1
+        Example: Jamf Pro policy; Parameter 4 `/var/log/org.churchofjesuschrist.log`, Parameters 5-8 default; macOS 26.1
 
   - type: textarea
     id: what-happened

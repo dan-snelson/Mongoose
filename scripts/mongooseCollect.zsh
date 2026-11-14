@@ -20,8 +20,8 @@
 #   warning and a manifest note) and is otherwise recorded as missing (set Parameter 5). The
 #   enrollment server address is never printed, logged or written to the manifest.
 #
-#   The script never moves the .zip; on success it prints paste-ready lines that give the
-#   logged-in user a mode-600 copy in ~/Downloads.
+#   The script never moves the .zip; on success it prints one paste-ready line that gives the
+#   logged-in user a user-owned, mode-600 copy in ~/Downloads without root ever writing there.
 #   Mongoose reads the archive off the Mac; nothing here runs an agent or LLM.
 #
 #   Run as root, for example from a Jamf Pro policy, or locally:
@@ -70,6 +70,17 @@
 #       literally, so no username is resolved or logged, and the script runs none of the lines
 #       (issue #7)
 #
+#   Version 0.0.5, 14-Nov-2026, Dan K. Snelson (@dan-snelson)
+#       The handoff is one paste-ready line, ( umask 077; sudo cat <archive> > ~/Downloads/<name> ):
+#       root only reads the archive, and the redirection runs as the pasting user, so a link
+#       planted at the destination gains nothing and the copy is user-owned with mode 600
+#       Parameter 8 discovery skips file names that hold control characters (tabs, newlines),
+#       which would break the manifest's tab-separated rows and split log lines; they are
+#       counted, never echoed, and noted in the manifest
+#       Parameters 4, 5 (file path or predicate), 6 and 8 are rejected when they hold control
+#       characters, without echoing the value; Parameter 6 stops the script before staging
+#       Parameter 7 is accepted only from 1m to 30d (43200m, 720h); otherwise 36h is used
+#
 ####################################################################################################
 
 
@@ -90,7 +101,7 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 umask 077
 
 # Script Version
-scriptVersion="0.0.4"
+scriptVersion="0.0.5"
 
 # Script Name (prefixes every log line)
 scriptName="Mongoose Collect"
@@ -118,6 +129,13 @@ selfServicePlusVersion=""
 
 # Parameter 4: Organization's reverse-domain script log (for example, /var/log/org.churchofjesuschrist.log)
 scriptLog="${4:-""}"
+scriptLogRejectReason=""                    # set when Parameter 4 is rejected
+# A value holding control characters is rejected before the first log line and cleared, so it is
+# never echoed, appended to or collected
+if [[ "${scriptLog}" == *[[:cntrl:]]* ]]; then
+    scriptLog=""
+    scriptLogRejectReason="contains control characters"
+fi
 
 # Parameter 5: MDM agent log: an absolute file path (starts with /) or a Unified Logging predicate;
 # empty: detected from the enrollment profile (see detectMdmVendor and the MDM agent log pre-flight);
@@ -134,22 +152,34 @@ mdmLogFile=""
 mdmLogPredicate=""
 mdmLogRejectReason=""
 
-# Parameter 6: Output directory
+# Parameter 6: Output directory (a value holding control characters stops the script in
+# pre-flight, before staging, without being echoed)
 outputDir="${6:-"/var/tmp"}"
 [[ "${outputDir}" != "/" ]] && outputDir="${outputDir%/}"
 
 # Parameter 7: Unified Logging window (Self Service+ and a Parameter 5 predicate), as passed to
-# `log show --last` (for example, 1h, 1d or 7d)
+# `log show --last` (for example, 1h, 1d or 7d); accepted from 1m to 30d, otherwise 36h
 unifiedLogWindow="${7:-"36h"}"
+unifiedLogWindowMaxMinutes=$(( 30 * 24 * 60 ))   # longest Parameter 7 window accepted: 30 days (720h)
 
-# Parameter 8: Per-script log directory, collected recursively (for example, /var/log/managed)
+# Parameter 8: Per-script log directory, collected recursively (for example, /var/log/managed).
+# Every plain *.log under it is copied, and the whole tree is listed before the file cap applies,
+# so point it only at a script-log directory, never a broad one such as /Users or /Library.
 scriptLogDir="${8:-""}"
 while [[ "${scriptLogDir}" == ?*/ ]]; do scriptLogDir="${scriptLogDir%/}"; done
 scriptLogDirMaxFiles=500                    # most files collected from Parameter 8 (*.log and rotated combined)
 scriptLogDirStatus="not set"                # set in pre-flight: "accepted" or "rejected: <reason>"
-scriptLogDirLogs=0                          # plain *.log files discovered under Parameter 8
-scriptLogDirFiles=0                         # files discovered under Parameter 8: *.log plus rotated siblings
+scriptLogDirLogs=0                          # collectable plain *.log files discovered under Parameter 8
+scriptLogDirFiles=0                         # collectable files under Parameter 8: *.log plus rotated siblings
 scriptLogDirOverflow=0                      # discovered beyond scriptLogDirMaxFiles, not collected
+scriptLogDirSkipped=0                       # *.log names holding control characters, skipped and never echoed
+
+# A value holding control characters is rejected before the first log line and cleared, so it is
+# never echoed or read
+if [[ "${scriptLogDir}" == *[[:cntrl:]]* ]]; then
+    scriptLogDir=""
+    scriptLogDirStatus="rejected: contains control characters"
+fi
 
 # Parameter 8 is never written: when the script log (Parameter 4) resolves inside it, the log is
 # still collected but never appended to (:A resolves symlinks; set before the first log line)
@@ -317,11 +347,13 @@ function collectFile() {
 #   ${1}  base log path
 #   Accepts only the names newsyslog writes: <log>.<n>, <log>.<n>.gz and <log>.<n>.bz2 (for
 #   example, system.log.0.gz). The (.) qualifier keeps plain files only, so symlinks and other
-#   names, such as <log>.bak, never match.
+#   names, such as <log>.bak, never match. Paths holding control characters are dropped; callers
+#   already refuse such a base path, so this is a second guard for the manifest and log lines.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function rotatedSiblings() {
     reply=( "${1}".<->(|.gz|.bz2)(N.n) )
+    reply=( "${(@)reply:#*[[:cntrl:]]*}" )
 }
 
 
@@ -358,6 +390,9 @@ function collectRotated() {
 #   Cap: scriptLogDirMaxFiles counts every candidate, *.log and rotated combined; candidates
 #   are listed each *.log followed by its rotated siblings, and those past the cap are skipped.
 #   Member suffix: the path relative to Parameter 8 with / replaced by _ (a/x.log -> a_x.log)
+#   A path holding control characters (a tab or newline in a file or directory name) would break
+#   the manifest's tab-separated rows and split log lines, so it is skipped and counted, and its
+#   name is never echoed; the counts above the cap reflect collectable files only.
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 function collectScriptLogDir() {
@@ -365,12 +400,21 @@ function collectScriptLogDir() {
     local logFile rotatedFile relativePath suffixPrefix
     local candidateIndex
     local collectedCount=0
+    local discoveredCount
 
     discoveredLogs=( "${scriptLogDir}"/**/*.log(N.) )
+    discoveredCount=${#discoveredLogs}
+    discoveredLogs=( "${(@)discoveredLogs:#*[[:cntrl:]]*}" )
+    scriptLogDirSkipped=$(( discoveredCount - ${#discoveredLogs} ))
     scriptLogDirLogs=${#discoveredLogs}
 
+    if (( scriptLogDirSkipped )); then
+        warning "Skipped ${scriptLogDirSkipped} *.log file name(s) with control characters under '${scriptLogDir}' (names not shown)"
+        absentOptional+=( "${scriptLogDirSkipped} *.log file(s) under ${scriptLogDir} with control characters in the path (names not shown)" )
+    fi
+
     if (( scriptLogDirLogs == 0 )); then
-        warning "Script-log directory '${scriptLogDir}' holds no plain *.log files"
+        warning "Script-log directory '${scriptLogDir}' holds no collectable plain *.log files"
         REPLY=0
         return 1
     fi
@@ -555,7 +599,7 @@ function collectUnifiedLog() {
 function writeManifest() {
     local manifestFile="${stagingDir}/${manifestMember}"
     local timeZone bootEpoch bootUTC modelIdentifier osVersion osBuild
-    local memberIndex memberFile memberBytes memberModified memberHash listItem
+    local memberIndex memberFile memberBytes memberModified memberHash listItem scriptLogDirSummary
 
     timeZone=$( readlink /etc/localtime 2>/dev/null )
     timeZone="${timeZone#*zoneinfo/}"
@@ -584,17 +628,20 @@ function writeManifest() {
         print -r -- "Model identifier: ${modelIdentifier:-unknown}"
         print -r -- "macOS: ${osVersion:-unknown} (${osBuild:-unknown})"
         print -r -- "Boot time (UTC): ${bootUTC}"
-        print -r -- "Script log (Parameter 4): ${scriptLog:-not set}"
+        if [[ -n "${scriptLogRejectReason}" ]]; then
+            print -r -- "Script log (Parameter 4): value not shown (rejected: ${scriptLogRejectReason})"
+        else
+            print -r -- "Script log (Parameter 4): ${scriptLog:-not set}"
+        fi
         if [[ "${scriptLogDirStatus}" == rejected:* ]]; then
-            print -r -- "Script-log directory (Parameter 8): ${scriptLogDir} (${scriptLogDirStatus})"
+            print -r -- "Script-log directory (Parameter 8): ${scriptLogDir:-value not shown} (${scriptLogDirStatus})"
         else
             print -r -- "Script-log directory (Parameter 8): ${scriptLogDir:-not set}"
         fi
-        if (( scriptLogDirOverflow )); then
-            print -r -- "Script-log files discovered: ${scriptLogDirFiles} (${scriptLogDirLogs} *.log plus rotated); cap ${scriptLogDirMaxFiles}; ${scriptLogDirOverflow} not collected"
-        else
-            print -r -- "Script-log files discovered: ${scriptLogDirFiles} (${scriptLogDirLogs} *.log plus rotated)"
-        fi
+        scriptLogDirSummary="Script-log files discovered: ${scriptLogDirFiles} (${scriptLogDirLogs} *.log plus rotated)"
+        (( scriptLogDirOverflow )) && scriptLogDirSummary+="; cap ${scriptLogDirMaxFiles}; ${scriptLogDirOverflow} not collected"
+        (( scriptLogDirSkipped )) && scriptLogDirSummary+="; ${scriptLogDirSkipped} *.log with control characters in the path skipped"
+        print -r -- "${scriptLogDirSummary}"
         if [[ "${mdmLogSource}" == "rejected" ]]; then
             print -r -- "MDM agent log (Parameter 5): value not shown (rejected: ${mdmLogRejectReason})"
         else
@@ -688,7 +735,9 @@ preFlight "Running as root; proceeding …"
 # Pre-flight Check: Script log
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-if [[ -z "${scriptLog}" ]]; then
+if [[ -n "${scriptLogRejectReason}" ]]; then
+    warning "Parameter 4 value not shown (rejected: ${scriptLogRejectReason}); logging to stdout only and skipping the reverse-domain script log"
+elif [[ -z "${scriptLog}" ]]; then
     preFlight "Parameter 4 (reverse-domain script log) not set; logging to stdout only"
 elif [[ ! -f "${scriptLog}" ]]; then
     preFlight "Script log '${scriptLog}' not found; logging to stdout only (it will not be created)"
@@ -702,10 +751,13 @@ fi
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: Script-log directory (Parameter 8)
-#   An absolute path to an existing directory, other than /; read only, never written
+#   An absolute path to an existing directory, other than /; read only, never written.
+#   A value holding control characters was already rejected and cleared (see Script Parameters).
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-if [[ -z "${scriptLogDir}" ]]; then
+if [[ "${scriptLogDirStatus}" == rejected:* ]]; then
+    :   # Rejected for control characters; the value is never echoed
+elif [[ -z "${scriptLogDir}" ]]; then
     preFlight "Parameter 8 (script-log directory) not set; skipping per-script logs"
 elif [[ "${scriptLogDir}" != /* ]]; then
     scriptLogDirStatus="rejected: not an absolute path"
@@ -721,17 +773,36 @@ fi
 # A rejected Parameter 8 is only a warning here (the manifest prints the reason); the script-log
 # requirement is judged after collection, when Parameter 4 may still meet it
 if [[ "${scriptLogDirStatus}" == rejected:* ]]; then
-    warning "Parameter 8 '${scriptLogDir}' ${scriptLogDirStatus}; skipping per-script logs"
+    if [[ -n "${scriptLogDir}" ]]; then
+        warning "Parameter 8 '${scriptLogDir}' ${scriptLogDirStatus}; skipping per-script logs"
+    else
+        warning "Parameter 8 value not shown (${scriptLogDirStatus}); skipping per-script logs"
+    fi
 fi
 
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: Unified Logging window (Parameter 7)
+#   <number>m, h or d, from 1m to unifiedLogWindowMaxMinutes (30d); at most five digits, so the
+#   arithmetic never overflows; otherwise 36h
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-if [[ "${unifiedLogWindow}" != <->[mhd] ]]; then
-    preFlight "Parameter 7 '${unifiedLogWindow}' is not <number>m, h or d; using 36h"
+unifiedLogWindowMinutes=0
+if [[ "${unifiedLogWindow}" == <->[mhd] ]] && (( ${#unifiedLogWindow} <= 6 )); then
+    unifiedLogWindowMinutes=$(( 10#${unifiedLogWindow%?} ))
+    case "${unifiedLogWindow[-1]}" in
+        h ) (( unifiedLogWindowMinutes *= 60 )) ;;
+        d ) (( unifiedLogWindowMinutes *= 1440 )) ;;
+    esac
+fi
+
+if (( unifiedLogWindowMinutes < 1 || unifiedLogWindowMinutes > unifiedLogWindowMaxMinutes )); then
+    if [[ "${unifiedLogWindow}" == *[[:cntrl:]]* ]]; then
+        preFlight "Parameter 7 value not shown (contains control characters); using 36h"
+    else
+        preFlight "Parameter 7 '${unifiedLogWindow}' is not <number>m, h or d from 1m to 30d; using 36h"
+    fi
     unifiedLogWindow="36h"
 fi
 
@@ -740,11 +811,13 @@ fi
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: MDM agent log (Parameter 5)
 #   Leading and trailing whitespace is trimmed first.
-#   Set: a value starting with / is a file; any other value is a Unified Logging predicate,
-#   rejected when it holds control characters, is longer than mdmLogPredicateMaxLength, or looks
-#   like a relative path: it starts with ~ or ., or ends in .log or .log.<n>, and holds no
-#   predicate operator (==, !=) or keyword (BEGINSWITH, CONTAINS, ENDSWITH, LIKE, MATCHES, IN;
-#   any case, whole words). File paths must be absolute. log show itself rejects bad syntax.
+#   Set: a value holding control characters is rejected, whether a file path or a predicate.
+#   Otherwise a value starting with / is a file; any other value is a Unified Logging predicate,
+#   rejected when it is longer than mdmLogPredicateMaxLength or looks like a relative path: it
+#   starts with ~ or ., or ends in .log or .log.<n>, and holds no predicate operator (==, !=) or
+#   keyword (BEGINSWITH, CONTAINS, ENDSWITH, LIKE, MATCHES, IN; any case, whole words). File
+#   paths must be absolute. log show itself rejects bad syntax, so any other relative value is
+#   exported as a predicate, fails, and is recorded as a failed export.
 #   Empty: detect the MDM vendor (see detectMdmVendor); Jamf Pro and undetected Macs use
 #   mdmLogDefault, and a vendor with no known agent log source uses mdmLogDefault when it exists.
 #   A rejected value is never echoed. The requirement is judged during collection.
@@ -757,13 +830,13 @@ while [[ "${mdmLogParam}" == *[[:space:]] ]]; do mdmLogParam="${mdmLogParam%[[:s
 mdmLogParamWords=" ${(L)mdmLogParam//[^[:alnum:]]/ } "
 
 if [[ -n "${mdmLogParam}" ]]; then
-    if [[ "${mdmLogParam}" == /* ]]; then
+    if [[ "${mdmLogParam}" == *[[:cntrl:]]* ]]; then
+        mdmLogSource="rejected"
+        mdmLogRejectReason="contains control characters"
+    elif [[ "${mdmLogParam}" == /* ]]; then
         mdmLogSource="file"
         mdmLogFile="${mdmLogParam}"
         preFlight "Parameter 5 is a file path; collecting MDM agent log '${mdmLogFile}'"
-    elif [[ "${mdmLogParam}" == *[[:cntrl:]]* ]]; then
-        mdmLogSource="rejected"
-        mdmLogRejectReason="predicate contains control characters"
     elif (( ${#mdmLogParam} > mdmLogPredicateMaxLength )); then
         mdmLogSource="rejected"
         mdmLogRejectReason="predicate is longer than ${mdmLogPredicateMaxLength} characters"
@@ -827,6 +900,11 @@ fi
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Pre-flight Check: Output directory
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# A value holding control characters is never echoed
+if [[ "${outputDir}" == *[[:cntrl:]]* ]]; then
+    fatal "Parameter 6 (output directory) contains control characters; value not shown; exiting."
+fi
 
 if [[ ! -d "${outputDir}" || ! -w "${outputDir}" ]]; then
     fatal "Output directory '${outputDir}' is missing or not writable; exiting."
@@ -904,14 +982,18 @@ if [[ "${scriptLogDirStatus}" == "accepted" ]]; then
 fi
 
 if (( scriptLogsCollected == 0 )); then
-    if [[ -z "${scriptLog}" && -z "${scriptLogDir}" ]]; then
+    if [[ -z "${scriptLog}" && -z "${scriptLogRejectReason}" && "${scriptLogDirStatus}" == "not set" ]]; then
         warning "Parameters 4 and 8 not set; bundle lacks the organization's script logs"
         missingRequired+=( "organization script logs (Parameters 4 and 8 not set)" )
     else
+        # A rejected value that was cleared (control characters) is never echoed
+        scriptLogDetail="'${scriptLog:-not set}'"
+        [[ -n "${scriptLogRejectReason}" ]] && scriptLogDetail="value not shown (rejected: ${scriptLogRejectReason})"
         scriptLogDirDetail="'${scriptLogDir:-not set}'"
+        [[ -z "${scriptLogDir}" && "${scriptLogDirStatus}" == rejected:* ]] && scriptLogDirDetail="value not shown"
         [[ "${scriptLogDirStatus}" == rejected:* ]] && scriptLogDirDetail+=" (${scriptLogDirStatus})"
         warning "Neither Parameter 4 nor Parameter 8 yielded a script log"
-        missingRequired+=( "organization script logs (no file from Parameter 4 '${scriptLog:-not set}' or Parameter 8 ${scriptLogDirDetail})" )
+        missingRequired+=( "organization script logs (no file from Parameter 4 ${scriptLogDetail} or Parameter 8 ${scriptLogDirDetail})" )
     fi
 fi
 
@@ -1006,13 +1088,14 @@ fi
 
 notice "Complete with ${warningCount} warning(s); transfer '${archivePath}' for analysis"
 
-# Handoff: paste-ready lines on stdout only (never the script log) that give the logged-in user
-# a mode-600 copy in ~/Downloads. "$USER" and ~ are printed literally and expand in the pasting
-# user's shell, so no username is resolved, printed or logged; the script runs none of them.
-notice "To attach the archive in a chat app, paste these lines as the logged-in user (not root):"
-print -r -- "sudo cp ${(q-)archivePath} ~/Downloads/"
-print -r -- 'sudo chown "$USER" ~/Downloads/'"${(q-)archivePath:t}"
-print -r -- 'chmod 600 ~/Downloads/'"${(q-)archivePath:t}"
+# Handoff: one paste-ready line on stdout only (never the script log) that gives the logged-in
+# user a mode-600 copy in ~/Downloads. Root only reads the archive (sudo cat); the redirection
+# runs as the pasting user under umask 077, so root never writes into the user's directory, a
+# link planted at the destination gains nothing, and the copy is user-owned without chown or
+# chmod. ~ is printed literally and expands in the pasting user's shell, so no username is
+# resolved, printed or logged; the script runs none of it.
+notice "To attach the archive in a chat app, paste this line as the logged-in user (not root):"
+print -r -- "( umask 077; sudo cat ${(q-)archivePath} > ~/Downloads/${(q-)archivePath:t} )"
 notice "The copy holds the same sensitive data as the archive; ~/Downloads is not synced by iCloud Drive's Desktop & Documents Folders, so do not use ~/Desktop or ~/Documents; delete both copies once attached"
 
 exit 0
