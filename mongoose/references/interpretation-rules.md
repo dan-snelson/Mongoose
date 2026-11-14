@@ -7,7 +7,7 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 ### Installer Success Is Not Postinstall Success
 
 - A package can log `Installed` after its postinstall download failed, for example an SSL timeout (curl error 28).
-- Before calling a package Good, find the postinstall's own outcome in `install.log`, `<rdnn>.log` or the component's log, and check that what it fetches exists afterward.
+- Before calling a package Good, find the postinstall's own outcome in `install.log`, the script logs (`<rdnn>.log` or per-script files) or the component's log, and check that what it fetches exists afterward.
 - Report "installed, postinstall failed" as Bad, not Good.
 
 ### `MDM conflicts with DDM, ignoring OS updates`
@@ -26,7 +26,7 @@ Patterns that change conclusions. Apply the core rules on any fleet. Apply an op
 
 - Setup Assistant starts on Pacific time by default, so the offset changes mid-log once the time zone is set.
 - In `install.log`, BSD-style stamps without an offset during erase or early boot are UTC.
-- Anchor offset-less sources (system.log, `<mdm>.log`, `<rdnn>.log`) with system.log `BOOT_TIME` and `SHUTDOWN_TIME` epoch values and with events that appear in more than one source. Method: [Time Context](time-context.md).
+- Anchor offset-less sources (system.log, `<mdm>.log`, script logs) with system.log `BOOT_TIME` and `SHUTDOWN_TIME` epoch values and with events that appear in more than one source. Method: [Time Context](time-context.md).
 
 ### Collection Artifacts
 
@@ -59,6 +59,7 @@ Most fleets do not use these. Detect first; otherwise skip the section.
 - **Detect:** an EPM audit log, for example `defendpoint.audit.log`.
 - It may audit only user-context executions, so root-helper activity is absent. Absence there does not show the helper did not run.
 - Right after the client installs, before its policy arrives, it can log that it is disabled because the policy is invalid. Report that only if it persists past the first allow or deny decision.
+- Count records by their header lines, then break them down by type. Decision verbs are not the only record type; authorization-request displays and status records also appear, and counting one verb undercounts.
 - It may record one CommandLine for many rapid children of the same parent (App-Auto-Patch/AAP4-Swift#355). Do not count CommandLine values as distinct executions.
 - On recent macOS, Apple binaries can chain to a "macOS Software Signing" leaf certificate. Publisher rules that exact-match "Software Signing" miss them.
 

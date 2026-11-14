@@ -2,11 +2,11 @@
 
 Thank you for helping keep **Mongoose** secure.
 
-Mongoose is an [Agent Skill](https://agentskills.io) for Claude Code and Codex. It ships no compiled code, but its instructions direct an AI agent to read **untrusted captures** from managed Macs (client-log bundles, MDM inventory JSON exports, Apple sysdiagnoses, `Terminal Saved Output*.txt` transcripts and prior Mongoose reports), run local commands against them (`unzip`, `gzcat`, `tar`, `shasum`, `log show`, `rg`, `jq`, `plutil`), and write reports that hold **device identifiers and configuration details**. On request, its **post-chat-refine** pass edits the skill's own files. The repository also ships **`scripts/mongooseCollect.zsh`**, a collector that runs **as root** on the audited Mac. The maintained attack surface is **`mongoose/SKILL.md`**, everything under **`mongoose/references/`**, and **`scripts/mongooseCollect.zsh`**.
+Mongoose is an [Agent Skill](https://agentskills.io) for Claude Code and Codex. It ships no compiled code, but its instructions direct an AI agent to read **untrusted captures** from managed Macs (client-log bundles, MDM inventory JSON exports, Apple sysdiagnoses, `Terminal Saved Output*.txt` transcripts and prior Mongoose reports), run local commands against them (`unzip`, `zipinfo`, `gzcat`, `bzcat`, `tar`, `file`, `shasum`, `log show`, `rg`, `jq`, `plutil`, and `sqlite3` on an in-memory database), and write reports that hold **device identifiers and configuration details**. On request, its **post-chat-refine** pass edits the skill's own files. The repository also ships **`scripts/mongooseCollect.zsh`**, a collector that runs **as root** on the audited Mac. The maintained attack surface is **`mongoose/SKILL.md`**, everything under **`mongoose/references/`**, and **`scripts/mongooseCollect.zsh`**.
 
 ## Supported Versions
 
-Mongoose does not yet publish tagged releases. Only the current `main` branch receives security updates.
+Mongoose tags its releases (starting with `v0.0.1`), and [CHANGELOG.md](CHANGELOG.md) records each by version and date. Only the current `main` branch receives security updates.
 
 - Current stable: **`main`**
 - Current prerelease line: **`development`**
@@ -50,7 +50,7 @@ Please include as much of the following as possible:
 - Steps to reproduce it, including a minimal, synthetic capture that triggers it (never a capture from a real Mac)
 - The `main` commit SHA of the Mongoose copy you used
 - The agent and version (Claude Code or Codex), plus its permission or sandbox mode
-- For collector issues: how it ran (MDM policy or locally with `sudo`), Parameters 4-7 as placeholders, and the macOS version
+- For collector issues: how it ran (MDM policy or locally with `sudo`), Parameters 4-8 as placeholders, and the macOS version
 - The relevant agent transcript excerpt or report section, sanitized with placeholders such as `<serial>`, `<computer-id>`, `<hostname>`, `<end-user>` and `<mdm-url>`
 - Any suggested mitigation or fix
 - Your name or handle, if you want attribution
@@ -64,8 +64,8 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
 - Keep captures in the git-ignored `logs/` directory and reports in `reports/`, and never force-add either. If you run Mongoose from another working directory, gitignore `reports/` there first.
 - Treat every capture and report as sensitive. Reports keep the Mac's serial number by default; accept redaction at the prompt before a report leaves the team that manages the Mac. Never attach captures, sysdiagnoses, inventory JSON exports or full reports to public issues.
 - Read each follow-up command before running it on an endpoint. Follow-ups are meant to be read-only; if one changes state or asks for secrets, don't run it, and report it.
-- Review `mongooseCollect.zsh` before deploying it. It runs as root and copies the files that Parameters 4 and 5 name in full, so point them only at log files. If you change Parameter 6, choose an output directory that only root can write.
-- Move the collector's archive off the Mac through a channel approved for sensitive data, then delete it from the output directory.
+- Review `mongooseCollect.zsh` before deploying it. It runs as root and copies the files that Parameters 4 and 5 name in full, so point them only at log files. Parameter 8 copies every plain `*.log` under the directory it names, and lists the whole tree before its 500-file cap applies, so point it only at a script-log directory, never a broad one such as `/Users` or `/Library`. If you change Parameter 6, choose an output directory that only root can write.
+- Move the collector's archive off the Mac through a channel approved for sensitive data, then delete it from the output directory, including the `~/Downloads` copy from the handoff line.
 - If Mongoose reports that the baseline report's SHA-256 no longer matches `reports/mongoose-baseline.md`, find out why before setting the baseline again.
 - Review the diff after accepting **post-chat-refine** and before committing it. Confirm that no serials, computer IDs, hostnames, accounts, URLs, policy or script names, timestamps or hashes were added to the skill files. Then accept its offer to delete the scratch directory, because `fingerprints.txt` holds the run's real identifiers.
 
@@ -98,10 +98,16 @@ You should receive an acknowledgment within **48 hours**. We will work with you 
   - It needs no MDM API access or credentials, and makes no network connections.
   - It creates a new, unpredictably named staging directory with `mktemp -d`, never reuses an existing path, and on failure removes only the staging directory it created.
   - It never overwrites one collected file with another: a member name already in use gets a `-<n>-` prefix, and a file named twice is copied once.
-  - It validates Parameter 7 against `<number>m`, `h` or `d` before passing it to `log show`, and falls back to `36h`.
-  - It appends to the reverse-domain script log only when that file already exists.
+  - It rejects Parameters 4, 5, 6 and 8 when they hold control characters, without echoing the value: a rejected Parameter 4 is neither collected nor appended to, a rejected Parameter 5 or 8 is recorded in the manifest as "value not shown", and a rejected Parameter 6 stops the script before staging.
+  - It validates Parameter 7 against `<number>m`, `h` or `d`, from `1m` to `30d` (`720h`, `43200m`), before passing it to `log show`, and otherwise falls back to `36h`.
+  - When Parameter 5 is empty, it reads `profiles list` to detect the MDM vendor and never records the enrollment server address: it stays out of stdout, the script log and the manifest, which name only the vendor. When the detected vendor has no known agent log source, it collects `/var/log/jamf.log` only if that file exists, warns, and notes the fallback in the manifest; it never guesses another path.
+  - It trims leading and trailing whitespace from Parameter 5 and accepts a file path only as an absolute path. It rejects a value that looks like a relative path (starts with `~` or `.`, or ends in `.log` or `.log.<n>`, with no predicate operator or keyword) and never echoes a rejected value. Any other relative value is treated as a predicate, so `log show` rejects it, the export is recorded as failed, and the value appears in the manifest as a predicate.
+  - It passes a Parameter 5 Unified Logging predicate to `log show` as one argument, never evaluated by the shell, after rejecting one longer than 1,024 characters, and bounds the export by the Parameter 7 window. A broad predicate exports more data, so scope it to the MDM agent's process or subsystem.
+  - It accepts Parameter 8 only as an absolute path to an existing directory other than `/`, and otherwise warns and records the problem in the manifest. Under it, it collects only plain `*.log` files at any depth, plus their rotated siblings: `**` does not follow symlinked directories, symlinked files are skipped, hidden directories are skipped, paths holding control characters are skipped and counted without being echoed, so they cannot break the manifest's tab-separated rows or split log lines, and collection stops at 500 files, `*.log` and rotated combined. Rotated siblings of any log match only `<log>.<n>`, `<log>.<n>.gz` and `<log>.<n>.bz2`. It never writes into that directory: a Parameter 4 log inside it is collected but not appended to, and an output directory at or under it stops the script before staging.
+  - It appends to the reverse-domain script log only when that file already exists and is outside Parameter 8.
   - Its manifest omits hostnames, usernames and IP addresses.
   - It builds the archive inside the staging directory, tests it with `unzip -t` and sets it to mode `600` there, then publishes it with `link`, which fails rather than replace, update or follow anything already at the archive path. It prints the archive's SHA-256.
+  - On success, it prints one paste-ready line, `( umask 077; sudo cat <archive> > ~/Downloads/<name> )`, that copies the archive to the pasting user's `~/Downloads`. Root only reads the archive; the redirection runs as the pasting user, so root never writes into the user's directory, a link planted at the destination gains nothing, and the copy is user-owned with mode `600` through the umask. It runs none of the line, prints it to stdout only, never to the script log, and prints `~` literally, so no username is resolved or logged.
 - Changes are reviewed with attention to shell quoting in documented commands, untrusted capture handling, report destinations, what post-chat-refine may write, and the collector's root privileges.
 
 ## Disclosure Policy

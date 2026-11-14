@@ -101,7 +101,8 @@ body:
       options:
         - system.log (with or without rotated files)
         - MDM agent log (for example jamf.log)
-        - Reverse-domain script log (for example com.example.it.log)
+        - Reverse-domain script log (for example org.churchofjesuschrist.log)
+        - Per-script log directory (for example /var/log/managed/)
         - install.log
         - Self Service+ unified log export
         - App Auto-Patch or EPM audit logs
@@ -166,9 +167,9 @@ body:
     id: collector-context
     attributes:
       label: Collector context
-      description: For `mongooseCollect.zsh` bugs only. Include how it ran (Jamf Pro policy, another MDM, or locally with `sudo`), the parameters 4-7 you passed (as placeholders), and the macOS version from `sw_vers` on the audited Mac.
+      description: For `mongooseCollect.zsh` bugs only. Include how it ran (Jamf Pro policy, another MDM, or locally with `sudo`), the parameters 4-8 you passed (as placeholders), and the macOS version from `sw_vers` on the audited Mac.
       placeholder: |
-        Example: Jamf Pro policy; Parameter 4 `/var/log/com.example.it.log`, Parameters 5-7 default; macOS 26.1
+        Example: Jamf Pro policy; Parameter 4 `/var/log/org.churchofjesuschrist.log`, Parameters 5-8 default; macOS 26.1
 
   - type: textarea
     id: what-happened
@@ -196,8 +197,8 @@ body:
       description: Numbered steps make bugs much easier to act on. A minimal, synthetic log excerpt that reproduces the issue is the most helpful thing you can include.
       placeholder: |
         1. Install Mongoose by symlinking `mongoose/` into `~/.claude/skills/`
-        2. Build a bundle with `sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/com.example.it.log`
-        3. Ask: "Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `com.example.it.log`."
+        2. Build a bundle with `sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log`
+        3. Ask: "Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`."
         4. Observe the unexpected behavior in `reports/mongoose-gbu-<YYYY-MM-DD-HHMMSS>.md`
     validations:
       required: true

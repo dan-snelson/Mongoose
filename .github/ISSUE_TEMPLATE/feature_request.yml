@@ -12,7 +12,7 @@ body:
 
         Requests that keep Mongoose read-only, evidence-cited, and organization-neutral are the easiest to accept.
 
-        Mongoose uses Jamf Pro as its worked example. A request to support another MDM needs a short, sanitized sample of that MDM's agent log and its documented path; Mongoose never guesses either.
+        Mongoose uses Jamf Pro as its worked example. A request to support another MDM needs the minimum inputs in [Adding Another MDM](https://github.com/dan-snelson/Mongoose/blob/main/CONTRIBUTING.md#adding-another-mdm); Mongoose never guesses its log paths or formats.
 
   - type: textarea
     id: problem
@@ -52,6 +52,7 @@ body:
         - Report format (GBU sections, timeline, delta tables)
         - Preliminary audit (MDM inventory JSON)
         - Re-audit or environment baseline
+        - MDM health summary (endpoint roll-up)
         - Sysdiagnose analysis
         - Follow-up Zsh commands
         - Collector script (mongooseCollect.zsh)

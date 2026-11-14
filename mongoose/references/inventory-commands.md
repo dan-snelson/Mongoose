@@ -58,12 +58,12 @@ done
 ```zsh
 capture_dir='logs/<bundle-directory>'
 
-# Files, sizes and formats.
-find "$capture_dir" -maxdepth 2 -type f -exec stat -f '%z bytes\t%N' {} \;
-find "$capture_dir" -maxdepth 2 -type f -exec file {} \;
+# Files, sizes and formats, at any depth (nested script-log folders included).
+find "$capture_dir" -type f -exec stat -f '%z bytes\t%N' {} \;
+find "$capture_dir" -type f -exec file {} \;
 
 # Line counts; decompress rotated logs first, or wc counts compressed bytes.
-for f in "$capture_dir"/*(.N); do
+for f in "$capture_dir"/**/*(.N); do
   case "$f" in
     *.gz)  print -r -- "$(gzcat "$f" | wc -l | tr -d ' ') $f" ;;
     *.bz2) print -r -- "$(bzcat "$f" | wc -l | tr -d ' ') $f" ;;
@@ -72,7 +72,7 @@ for f in "$capture_dir"/*(.N); do
 done
 
 # Coverage window and truncated tails: first and last line per log.
-for f in "$capture_dir"/*.log(.N); do
+for f in "$capture_dir"/**/*.log(.N); do
   print -r -- "== $f"
   head -n 1 "$f"
   tail -n 1 "$f"
@@ -85,10 +85,46 @@ rg -n -i 'error|fail|denied|killed' "$capture_dir"
 rg -n -i -m 5 -e 'serial' -e 'S/N' "$capture_dir"
 
 # Read rotated logs without extracting them in place.
-for gz in "$capture_dir"/*.gz(.N); do
+for gz in "$capture_dir"/**/*.gz(.N); do
   print -r -- "== $gz"
   gzcat "$gz" | rg -n 'BOOT_TIME|SHUTDOWN_TIME'
 done
+```
+
+## Script-Log Directory
+
+When the Mac Admin names a per-script log directory ([Capture Layout](capture-layout.md#primary-sources)), list its members and characterize each one. Run the ZIP safety check above first. The folder path is data: pass it with `awk -v`, never splice it into the program.
+
+```zsh
+bundle='logs/<bundle>.zip'
+capture_dir='logs/<bundle-directory>'
+log_dir='Logs/<script-log-dir>/'  # the folder as the capture shows it, ending in /
+
+# ZIP: first line, last line and line count per member under the folder.
+zipinfo -1 "$bundle" | awk -v dir="$log_dir" 'index($0, dir) == 1 && !/\/$/' |
+  while IFS= read -r member; do
+    print -r -- "== $member"
+    case "$member" in
+      *.gz)  unzip -p "$bundle" "$member" | gzcat ;;
+      *.bz2) unzip -p "$bundle" "$member" | bzcat ;;
+      *)     unzip -p "$bundle" "$member" ;;
+    esac | awk 'NR == 1 { print } { last = $0 } END { if (NR > 1) print last; print NR " lines" }'
+  done
+
+# Folder: the same, at any depth under the folder.
+for f in "$capture_dir/$log_dir"**/*(.N); do
+  print -r -- "== $f"
+  case "$f" in
+    *.gz)  gzcat "$f" ;;
+    *.bz2) bzcat "$f" ;;
+    *)     cat "$f" ;;
+  esac | awk 'NR == 1 { print } { last = $0 } END { if (NR > 1) print last; print NR " lines" }'
+done
+
+# mongooseCollect flattens paths. Map members back to the directory with the
+# manifest's tab-separated columns: member, bytes, modified, sha256, source.
+unzip -p "$bundle" '<prefix>-mongooseCollect-manifest.txt' |
+  awk -F '\t' -v dir='/var/log/<script-log-dir>/' 'NF == 5 && index($5, dir) == 1 { print $1 "\t" $5 }'
 ```
 
 ## MDM Inventory JSON
@@ -111,12 +147,28 @@ jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | sort -u | head
 # only the hardware or general section names the Mac.
 jq -r 'paths(scalars) | map(tostring) | join(".")' "$inventory" | rg -i 'serial'
 
+jq -r 'paths(scalars) | map(if type == "number" then "[]" else tostring end) | join(".")' "$inventory" | sort -u | head -n 200  # list-shaped: indices as []
+jq -r '(if type == "array" then ["(root)", length] else empty end), (paths(arrays) as $p | select($p | all(type == "string")) | [($p | join(".")), (getpath($p) | length)]) | @tsv' "$inventory"  # array lengths; one is the device count
+jq -c --arg s '<serial>' 'paths(. == $s)' "$inventory"  # path of the record holding the serial
+
 # Snapshot candidate: a 13-digit epoch in the file name, as UTC. Compare with mtime.
 epoch_ms=$(print -r -- "${inventory:t}" | rg -o '[0-9]{13}' | head -n 1)
 [[ -n "$epoch_ms" ]] && date -u -r $(( epoch_ms / 1000 )) '+%Y-%m-%dT%H:%M:%SZ'
 
 # Print one key path once you know it is needed.
 jq '.<key>.<path>' "$inventory"
+```
+
+### Inventory CSV
+
+```zsh
+csv='logs/<inventory-export>.csv'
+file --mime-encoding "$csv"  # us-ascii or utf-8 only; otherwise stop and ask. Convert nothing in place.
+# Rows as JSON arrays, header row first, every cell kept as text. In memory; nothing written to disk.
+csvrows() { local n i c=(); n=$(sqlite3 :memory: -cmd '.import --csv /dev/stdin h' "select count(*) from pragma_table_info('h')" < "$1" 2>/dev/null)
+  [[ "$n" == <1-> ]] || { print -u2 "csvrows: no header read"; return 1; }; for i in {1..$n}; do c+=("c$i text"); done; sqlite3 -json :memory: "create table t(${(j:,:)c})" '.import --csv /dev/stdin t' 'select * from t' < "$1" | jq -c 'map([.[]])'; }
+csvrows "$csv" | jq -r '.[0] as $h | .[1:] as $r | "data rows\t\($r | length)", (range($h | length) as $i | [$i + 1, $h[$i], ([$r[] | select((.[$i] // "") != "")] | length)] | @tsv)'  # then column number, name, populated rows; none: empty or unreadable
+csvrows "$csv" | jq --arg c '<column-number>' --arg s '<serial>' 'to_entries[1:][] | select(.value[$c | tonumber - 1] == $s) | .key'  # data-row number
 ```
 
 ### Preliminary Audit Projections
@@ -145,4 +197,4 @@ jq -r "$eas"' eas | select((.values // []) | join(" ") | test("\\b([0-9]{1,3}\\.
 jq -r "$eas"' eas | select((.values // []) | join(" ") | test("error|not found|no such file|permission denied"; "i")) | .name' "$inventory"
 ```
 
-Prefer `rg` for focused searches. Use `head`, `tail`, `sed -n`, `awk`, `file`, `wc`, `stat`, `zipinfo`, `unzip -l`, `unzip -p`, `unzip -t`, `gzcat` and `jq` to characterize large inputs before broad searches. For sysdiagnose archives, see [Archive And Log Commands](sysdiagnose/archive-and-log-commands.md).
+Prefer `rg` for focused searches. Use `head`, `tail`, `sed -n`, `awk`, `file`, `wc`, `stat`, `zipinfo`, `unzip -l`, `unzip -p`, `unzip -t`, `gzcat`, `jq` and in-memory `sqlite3` to characterize large inputs before broad searches. For sysdiagnose archives, see [Archive And Log Commands](sysdiagnose/archive-and-log-commands.md).

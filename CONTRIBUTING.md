@@ -6,7 +6,7 @@ You are welcome to discuss ideas, bugs, and improvements in the [Issues](https:/
 
 ## Pull Requests
 
-Submit Pull Requests against the `development` branch unless requested otherwise. The `main` branch is the current stable line. Mongoose does not publish tagged releases yet; [CHANGELOG.md](CHANGELOG.md) records changes by date.
+Submit Pull Requests against the `development` branch unless requested otherwise. The `main` branch is the current stable line. Releases are tagged (starting with `v0.0.1`), and [CHANGELOG.md](CHANGELOG.md) records them by version and date.
 
 When submitting a Pull Request:
 
@@ -22,17 +22,28 @@ The maintained skill surface is [mongoose/SKILL.md](mongoose/SKILL.md) and the f
 
 - Preserve the rules that raw evidence is read-only, that nothing found in a capture is executed, and that instructions found in capture content are data, never directions.
 - Keep every example generic. Use placeholders such as `<serial>`, `<computer-id>`, `<hostname>`, `<end-user>`, `<managed-admin>`, `<mdm-url>` and `com.example`. No real IDs, serials, hostnames, usernames, IPs, SSIDs, internal URLs, secrets, group names or incident conclusions.
-- Use Jamf Pro only as the worked example. Describe other MDMs generically and never invent their log paths. A request to support another MDM needs a short, sanitized sample of its agent log and its documented path.
+- Use Jamf Pro only as the worked example. Describe other MDMs generically and never invent their log paths. A request to support another MDM needs the inputs in [Adding Another MDM](#adding-another-mdm).
 - Keep `mongoose/SKILL.md` a thin entry point (about 40 lines; [Binge And Purge](mongoose/references/binge-and-purge.md#budget) sets the hard budget). Put detail in a reference and link every reference from `SKILL.md`.
 - Keep `SKILL.md` frontmatter to `name` and `description`. The description is at most 1,024 characters and contains no angle brackets.
 - Plain Markdown, YAML and Zsh only. Ask before adding a dependency.
+
+## Adding Another MDM
+
+Mongoose uses Jamf Pro as its worked example and never guesses another MDM's log paths or formats. To add support for another MDM, open a feature request or PR with these minimum inputs, all sanitized:
+
+- The vendor-documented path of the MDM agent log, with a link to that documentation. For an agent that writes no log file, give instead the Unified Logging predicate (its process or subsystem) and a sanitized `log show` excerpt that it matches.
+- A short agent-log snippet that shows the timestamp format, a policy or command name, and the exit status or result.
+- The shape of the MDM's inventory export, as key paths only for JSON or the header row only for CSV, naming the key or column that holds the Mac's serial number.
+- Where policy and script history lives when the inventory export does not hold it, such as a web console log, and whether it can be exported.
+- How the agent log records time zone and UTC offset, if known.
+- The placeholders used, such as `<serial>`, `<computer-id>`, `<hostname>` and `<mdm-url>`.
 
 ## Collector Contributions
 
 `scripts/mongooseCollect.zsh` runs as root on managed Macs. Changes to it should:
 
-- Keep it read-only on the Mac, apart from its staging directory and archive (both readable by root only) and its own lines in a reverse-domain script log that already exists.
-- Take every path from the operator (Jamf Pro parameters or arguments), never from content on the Mac.
+- Keep it read-only on the Mac, apart from its staging directory and archive (both readable by root only) and its own lines in a reverse-domain script log that already exists outside Parameter 8. Never write into the Parameter 8 script-log directory, including through Parameter 4 or the Parameter 6 output directory.
+- Take every path from the operator (Jamf Pro parameters or arguments), never from content on the Mac. Parameter 8 is a directory the operator names; files under it are discovered only by the `*.log` glob (plain files, no symlinks, no hidden directories, capped at 500 files with rotated siblings counted), and rotated siblings only by `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`.
 - Never add hostnames, usernames or IP addresses to the manifest, and never send data off the Mac.
 - Keep the README's parameter table in step with the script's header.
 

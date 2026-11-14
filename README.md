@@ -1,29 +1,32 @@
 # Mongoose
 > Mongoose delivers a deep, under-the-hood audit of your MDM policies, focusing on how custom script deployments affect your Mac fleet.
 
-![Mongoose](images/Mongoose_Hero_001.jpeg "Mongoose")
+![Mongoose](images/Mongoose_Hero.jpeg "Mongoose")
 
 This AI skill analyzes key logs …
 - `/var/log/system.log`
 - `/var/log/<mdm>.log` (i.e., Jamf Pro's `/var/log/jamf.log`)
-- `/var/log/<rdnn>.log` (i.e., your organization's reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`)
+- Your organization's script logs: either `/var/log/<rdnn>.log` (i.e., a reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`) or a directory with one log per script (for example `/var/log/managed/`)
 
 … then produces a clear Markdown report structured as “The Good, The Bad, and The Ugly.”
+
+Mongoose runs off the Mac. It reads a client-log bundle (a ZIP or folder) built by [`mongooseCollect.zsh`](#collect) or by an existing "Collect Logs" policy, so no agent or LLM runs on your managed Macs.
 
 ## What it reads
 
 | Input | Required | What it shows |
 |---|---|---|
 | `/var/log/system.log` and rotated `.gz` files | Yes | Boots, shutdowns, launchd and daemon activity |
-| `/var/log/<mdm>.log` | Yes | Your MDM agent's log. |
-| `/var/log/<rdnn>.log` | Yes | Your organization's reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` |
+| `/var/log/<mdm>.log` | Yes | Your MDM agent's log. For an agent that writes no log file, a Unified Logging export (`*-mdm-agent.log`) instead |
+| `/var/log/<rdnn>.log` or `<script-log-dir>` | Yes | Your organization's script logs: one reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`, or a directory you name with one log per script, for example `/var/log/managed/`. `<rdnn>.log` is the default when present; both may appear |
 | `/var/log/install.log` | Optional | Package and software-update activity |
-| MDM inventory JSON export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
+| MDM inventory JSON or CSV export | Optional | Server-side state at snapshot time. On its own, enough for a preliminary report |
 | Apple sysdiagnose | Optional | Unified logs, crashes, configuration and system state |
 | A prior Mongoose report | Optional | Turns the run into a re-audit with a delta table |
 | An environment baseline (`reports/mongoose-baseline.md`) | Optional | Compares each audit with the full report you set as your environment's reference |
+| A directory of finished Mongoose reports plus a manifest | Optional | Instead of a capture: one client's endpoint reports, rolled up into an MDM health summary |
 
-These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp. Mongoose detects the layout from the contents, not the names.
+These usually arrive as a client-log bundle: a ZIP or directory of copied `/var/log` files, often prefixed with a device ID and a collection timestamp, sometimes in nested folders. Mongoose detects the layout from the contents, not the names. Tell it where per-script logs live; it asks when it cannot tell.
 
 ## What it produces
 
@@ -39,9 +42,13 @@ Every `file:Lnn` citation is re-read from its source before the reply. A report 
 
 A re-audit adds a delta table (Fixed, Improved, Unchanged, Worse, Not observable) and re-test checklist results.
 
+For a fictional sample re-audit that shows every section, see [examples/mongoose-sample-report.md](examples/mongoose-sample-report.md).
+
 You can set one full report as your environment baseline. Every later audit, of any Mac, then adds a delta vs. baseline and tags each finding In baseline or Off-baseline. The baseline never hides or downgrades a finding. Mongoose stores only a pointer and the report's SHA-256 in `reports/mongoose-baseline.md`, and asks before using a report that has changed since.
 
-With only an MDM inventory JSON, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
+With only an MDM inventory JSON or CSV export, such as a Jamf Pro Computer Record, Mongoose writes a preliminary report, `reports/mongoose-gbu-preliminary-<YYYY-MM-DD-HHMMSS>.md`, named from the snapshot time. It grades management, security, encryption, certificates, profiles and extension attributes at that one snapshot, marks policy and script behavior Not observable, and makes collecting client-side logs for the full audit its first next step. A CSV or list export that holds several Macs needs the serial of the one to audit. Some MDMs, such as Mosyle, keep policy and script history only in the web console; a sanitized excerpt you supply counts as server-reported status, never as proof the script ran on the Mac. A preliminary report can never become the environment baseline: one snapshot shows no policy runs, script behavior or rates.
+
+For a managed service provider (MSP) with several clients, each on one MDM, Mongoose can also write an MDM health summary, `reports/mongoose-mdm-health-<client>-<YYYY-MM-DD-HHMMSS>.md`, named from the newest included report's time in UTC. An **endpoint** is one physical Mac. The summary reads finished Mongoose reports (`mongoose-gbu-*.md`) from one report directory, listed in a Markdown manifest, and never the captures behind them. It covers one client's MDM per summary and never compares across clients or MDMs. It groups equivalent findings by category across endpoints, states prevalence as "n of m sampled endpoints" from each endpoint's newest report, and shows a trend between collection periods (seven-day windows unless you state the grouping) over only the endpoints sampled in both. Endpoints appear by generic manifest aliases. The summary writes no serial numbers and asks no redaction question; each source report keeps its own serial rule. Every finding cites its source report, and a summary is never a baseline or prior report. For a fictional sample, see [examples/mongoose-sample-mdm-health.md](examples/mongoose-sample-mdm-health.md).
 
 ## Layout
 
@@ -54,25 +61,31 @@ mongoose/
     ├── evidence-safety.md            # Citations, privacy, placeholders, failure modes (always loaded)
     ├── capture-layout.md             # Bundle members and device identity
     ├── inventory-commands.md         # Read-only hashing and streaming commands
+    ├── inventory-exports.md          # Inventory JSON and CSV shapes, multi-device exports, console history
     ├── time-context.md               # Offsets, anchors and normalization
     ├── script-deployment-playbooks.md  # Per-script measurements
     ├── interpretation-rules.md       # Patterns that change a Good, Bad or Ugly call
     ├── report-gbu.md                 # Report file, provenance, order, citation check, redaction
-    ├── preliminary-audit.md          # Inventory-JSON-only runs
+    ├── preliminary-audit.md          # Inventory-export-only runs
     ├── re-audit-delta.md             # Second pass on the same Mac
     ├── environment-baseline.md       # Set and compare with a reference report
+    ├── mdm-health/                   # Roll up endpoint reports for one client's MDM: summary, report
     ├── post-chat-refine.md           # Fold a run's learnings back into the skill (on request)
     ├── binge-and-purge.md            # Slim SKILL.md and oversized references (on request)
     └── sysdiagnose/                  # Layout, commands, workflow, ADE handoffs, network filters
 scripts/
 └── mongooseCollect.zsh               # Root collector that builds the client-log bundle
+examples/
+├── mongoose-sample-report.md         # Fictional sample report (not part of the skill)
+└── mongoose-sample-mdm-health.md     # Fictional sample MDM health summary (not part of the skill)
 ```
 
 ## Install
 
-Mongoose follows the open Agent Skills format; the `mongoose/` directory works with Claude Code and Codex unchanged. A symlink keeps the installed skill in step with this checkout.
+Mongoose follows the open Agent Skills format; the `mongoose/` directory works with Claude Code and Codex unchanged. Install only that directory: it holds `SKILL.md`, `references/` and `agents/`, and needs no `scripts/` or `assets/` folder. A symlink keeps the installed skill in step with this checkout.
 
 ```zsh
+git clone https://github.com/dan-snelson/Mongoose.git /path/to/Mongoose
 cd /path/to/Mongoose
 
 # Claude Code
@@ -84,27 +97,50 @@ mkdir -p ~/.agents/skills
 ln -s "$PWD/mongoose" ~/.agents/skills/mongoose
 ```
 
+A copied `mongoose/` directory also works, but each report's provenance then reads `mongoose @ copied install` instead of a commit.
+
+**Claude desktop app (chat):** add the `mongoose/` directory as a skill through the app's skills settings, uploading a ZIP of that directory built from this checkout with `zip -r mongoose.zip mongoose`. This is a copied install, so each report's provenance reads `mongoose @ copied install`. The report arrives as a file to download; keep it out of any git repository.
+
+[`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) is not part of the skill, and the skill never runs it. Don't copy it into your skills directory; run it on each Mac you audit, as described in [Collect](#collect).
+
+Run your agent from this checkout. Mongoose writes reports to `reports/` in the working directory, [Usage](#usage) puts captures in `logs/`, and this repo's `.gitignore` already excludes both. In any other directory, Mongoose asks before writing to a `reports/` that git does not ignore.
+
 ## Collect
 
 [`scripts/mongooseCollect.zsh`](scripts/mongooseCollect.zsh) builds the client-log bundle on the Mac being audited. Run it as root. It needs no MDM API access and no credentials.
 
-It copies `system.log`, the MDM agent log and your reverse-domain script log, with their rotated files. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, and each member's size, modification time and SHA-256.
+It copies `system.log`, the MDM agent log and your script logs (a reverse-domain script log, a per-script log directory, or both), with their rotated files. When Parameter 5 is empty, it detects the MDM vendor from the enrollment profile (`profiles list`) and never records the enrollment server address: Jamf Pro and undetected Macs use `/var/log/jamf.log`. Another recognized MDM whose agent log source is not known (Jamf School is matched separately from Jamf Pro) still gets `/var/log/jamf.log` when that file exists, with a warning and a manifest note; otherwise its agent log is recorded as missing, so set Parameter 5 for it. Parameter 5 is trimmed of leading and trailing whitespace. A file path must be absolute: a value such as `jamf.log` or `~/x.log` that looks like a relative path and holds no predicate operator is rejected, never echoed, and recorded as missing. Parameter 5 may also be a Unified Logging predicate for an MDM agent that writes no log file; the script exports its entries with `log show` over the Parameter 7 window, and an export with no entries is recorded as missing. When present, it also copies `install.log`, App Auto-Patch logs and the BeyondTrust EPM `audit.log`. When Jamf Pro Self Service+ is installed, it exports Self Service+ entries from Unified Logging with `log show`, finding the app by bundle ID `com.jamf.selfserviceplus`, so a renamed app still counts. It adds a collection manifest: collection time with UTC offset, time zone, macOS build, boot time, serial number, the detected MDM vendor and the MDM agent log source, and each member's size, modification time, SHA-256 and `source` (its original path, or the `log show` command for a Unified Logging export).
 
 | Jamf Pro parameter | Value | Default |
 |---|---|---|
-| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log` | None. When unset, the bundle lacks it and the script warns |
-| 5 | MDM agent log | `/var/log/jamf.log` |
-| 6 | Output directory | `/var/tmp` |
-| 7 | Self Service+ log window, as passed to `log show --last`: `<number>m`, `h` or `d` | `36h` |
+| 4 | Reverse-domain script log, for example `/var/log/org.churchofjesuschrist.log`. A value holding control characters is rejected, never echoed, and neither collected nor appended to | None. When neither 4 nor 8 yields a script log, the bundle lacks script logs and the script warns |
+| 5 | MDM agent log: an absolute file path only (starts with `/`), or a Unified Logging predicate, such as `process == "<mdm-agent-process>"`, at most 1,024 characters. Leading and trailing whitespace is trimmed. A value holding control characters, file path or predicate, is rejected and never echoed. A relative path (starts with `~` or `.`, or ends in `.log` or `.log.<n>`, with no `==`, `!=`, `BEGINSWITH`, `CONTAINS`, `ENDSWITH`, `LIKE`, `MATCHES` or `IN`) is rejected. Any other relative value is treated as a predicate, so `log show` rejects it, the export is recorded as failed, and the value appears in the manifest as a predicate | Empty: detected from the enrollment profile; Jamf Pro and undetected Macs use `/var/log/jamf.log`, as does a recognized MDM with no known agent log source when that file exists |
+| 6 | Output directory. A value holding control characters stops the script before staging, without being echoed | `/var/tmp` |
+| 7 | Unified Logging window for Self Service+ and a Parameter 5 predicate, as passed to `log show --last`: `<number>m`, `h` or `d`, from `1m` to `30d` (`720h`, `43200m`); any other value falls back to `36h` | `36h` |
+| 8 | Per-script log directory, an absolute path such as `/var/log/managed`. Collected recursively: every plain `*.log` at any depth, with its rotated files, and the whole tree is listed before the cap applies, so point it only at a script-log directory, never a broad one such as `/Users` or `/Library`. Symlinks, hidden directories and file names holding control characters (counted, never echoed) are skipped, at most 500 files are collected (`*.log` and rotated files combined), and `/` and a value holding control characters are refused. Never written: a Parameter 4 log inside it is collected but not appended to, and a Parameter 6 output directory at or under it stops the script | None |
 
 ```zsh
 # Run locally. Jamf Pro reserves parameters 1-3.
 sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log
+
+# One log per script under a directory (Parameter 8).
+sudo zsh scripts/mongooseCollect.zsh / '' '' '' '' '' '' /var/log/managed
+
+# An MDM agent that logs only to Unified Logging (Parameter 5 as a predicate).
+sudo zsh scripts/mongooseCollect.zsh / '' '' /var/log/org.churchofjesuschrist.log 'process == "<mdm-agent-process>"'
 ```
 
-The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists.
+The result is `/var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip`, readable by root only. The script stops rather than replace anything already at that path. Each member is named `<serial>-<YYYY-MM-DD-HHMMSS>-<log>`; when two logs share a file name, the later one becomes `<serial>-<YYYY-MM-DD-HHMMSS>-<n>-<log>`. A Parameter 8 log is named by its path under that directory, with `/` replaced by `_` (`a/x.log` becomes `a_x.log`); the manifest's `source` column keeps each original path. Rotated files are collected only when named `<log>.<n>`, `<log>.<n>.gz` or `<log>.<n>.bz2`, in numeric order. A Parameter 5 predicate export is named `<serial>-<YYYY-MM-DD-HHMMSS>-mdm-agent.log`, and its manifest `source` is the `log show` command. The script never writes into the Parameter 8 directory: it stops before staging when the output directory is that directory or under it. The script prints the archive's path and SHA-256, and appends its own log lines to the reverse-domain script log only when that file already exists and is outside Parameter 8.
 
-> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture.
+On success, the script also prints a paste-ready handoff line with the real archive path. Paste it as the logged-in user, not root, to get a copy you can attach in a chat app:
+
+```zsh
+( umask 077; sudo cat /var/tmp/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip > ~/Downloads/mongoose-<serial>-<YYYY-MM-DD-HHMMSS>.zip )
+```
+
+`sudo` only reads the archive. The redirection runs as you, under `umask 077`, so root never writes into your home folder, a link planted at the destination gains nothing, and the copy is yours with mode `600`, readable only by you, without `chown` or `chmod`. `~` expands in your shell, so the script never resolves or logs a username, and it runs none of the line; it goes to stdout only, never to the script log. A Parameter 6 path with spaces is printed shell-quoted. `~/Downloads` is not synced by iCloud Drive's Desktop & Documents Folders, so don't use `~/Desktop` or `~/Documents`. The line runs `sudo`, so the logged-in user must be an administrator; for a standard user, an administrator pastes it from an admin account (the copy then lands in that admin's `~/Downloads`), or the archive moves off the Mac through your MDM's upload path, and when the collector runs from an MDM policy, the line lands in the policy log, not in front of the user.
+
+> **NOTE:** Moving the archive off the Mac is _up to you_; it holds the same sensitive data as any capture, and so does the `~/Downloads` copy from the handoff line. Delete both once the archive is attached or moved.
 
 ## Usage
 
@@ -114,14 +150,25 @@ Mongoose activates when a request matches its description. You can also call it 
 |---|---|
 | Claude Code | `/mongoose` or "Run a Mongoose GBU audit …" |
 | Codex | `$mongoose` or "Run a Mongoose GBU audit …" |
+| Claude desktop app (chat) | Attach the copy, then ask: "Run a Mongoose GBU audit on the attached bundle …" |
+
+In the Claude desktop app (chat): install the skill ([Install](#install)), run the collector on the Mac ([Collect](#collect)), paste the handoff line it prints, then attach the `~/Downloads` copy.
 
 Put captures in the git-ignored `logs/` directory, then ask:
 
 > Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script log is `org.churchofjesuschrist.log`.
 
+When each script writes its own log:
+
+> Run a Mongoose GBU audit on `logs/<bundle>.zip`. Our script logs are one file per script in `/var/log/managed/`.
+
 With only a Computer Record JSON:
 
 > Run a preliminary Mongoose audit on `logs/<computer-id>_response_<epoch-ms>.json`.
+
+With a CSV export that lists several Macs:
+
+> Run a preliminary Mongoose audit on `logs/<inventory-export>.csv` for serial `<serial>`.
 
 For a second pass:
 
@@ -131,17 +178,21 @@ To set your environment baseline from a full report:
 
 > Set `reports/mongoose-gbu-<timestamp>.md` as the Mongoose baseline.
 
-After the redaction question, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
+To summarize one client's MDM health from finished endpoint reports:
+
+> Summarize MDM health from the Mongoose reports in `reports/msp/` using `reports/msp/mongoose-manifest.md`.
+
+After an endpoint audit's redaction question, or after an MDM health summary, which asks none, the reply ends with a one-line offer to run `post-chat-refine`, which folds the run's durable lessons back into `mongoose/SKILL.md` and its references as generic guidance. Accepting edits the skill files in place, with serials, IDs, hostnames, accounts, URLs, policy and script names and other identifiers stripped. With the symlink install above, that is this checkout, so review `git diff` before committing.
 
 ## Privacy
 
-Captures and reports hold identifiers, paths and configuration from real Macs. Keep them local. This repo's `.gitignore` excludes `logs/`, `reports/`, archives and sysdiagnose trees. Mongoose reads evidence without changing it, never runs anything found in a capture, names each report's Mac by serial number, replaces other identifiers with placeholders, and offers to redact the serial once the findings are done.
+Captures and reports hold identifiers, paths and configuration from real Macs. Keep them local. This repo's `.gitignore` excludes `logs/`, `reports/`, archives and sysdiagnose trees. Mongoose reads evidence without changing it, never runs anything found in a capture, names each endpoint report's Mac by serial number, replaces other identifiers with placeholders, and offers to redact that serial once the findings are done. An MDM health summary writes no serial numbers and asks no redaction question.
 
 ## Contributing and security
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): pull requests, skill and collector rules, validation.
 - [SECURITY.md](SECURITY.md): report vulnerabilities in Mongoose or `mongooseCollect.zsh` privately.
-- [CHANGELOG.md](CHANGELOG.md): changes by date.
+- [CHANGELOG.md](CHANGELOG.md): changes by version and date.
 
 ## License
 
